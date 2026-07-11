@@ -1,15 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useRef } from 'react';
-import { useTranslations } from 'next-intl';
-import { FileUploader } from '../FileUploader';
-import { ProcessingProgress, ProcessingStatus } from '../ProcessingProgress';
-import { DownloadButton } from '../DownloadButton';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { extractPages, parsePageSelection } from '@/lib/pdf/processors/extract';
-import { configurePdfjsWorker } from '@/lib/pdf/loader';
-import type { ProcessOutput } from '@/types/pdf';
+import React, { useState, useCallback, useRef } from "react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { FileUploader } from "../FileUploader";
+import { ProcessingProgress, ProcessingStatus } from "../ProcessingProgress";
+import { DownloadButton } from "../DownloadButton";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { extractPages, parsePageSelection } from "@/lib/pdf/processors/extract";
+import { configurePdfjsWorker } from "@/lib/pdf/loader";
+import type { ProcessOutput } from "@/types/pdf";
 
 export interface ExtractPagesToolProps {
   /** Custom class name */
@@ -24,28 +25,28 @@ interface PagePreview {
 /**
  * ExtractPagesTool Component
  * Requirements: 5.1, 5.2
- * 
+ *
  * Provides the UI for extracting specific pages from a PDF.
  */
-export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
-  const t = useTranslations('common');
-  const tTools = useTranslations('tools');
-  
+export function ExtractPagesTool({ className = "" }: ExtractPagesToolProps) {
+  const t = useTranslations("common");
+  const tTools = useTranslations("tools");
+
   // State
   const [file, setFile] = useState<File | null>(null);
   const [totalPages, setTotalPages] = useState<number>(0);
-  const [status, setStatus] = useState<ProcessingStatus>('idle');
+  const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [progress, setProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState('');
+  const [progressMessage, setProgressMessage] = useState("");
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Page selection
   const [pagePreviews, setPagePreviews] = useState<PagePreview[]>([]);
   const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set());
-  const [pageInput, setPageInput] = useState('');
+  const [pageInput, setPageInput] = useState("");
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(false);
-  
+
   // Ref for cancellation
   const cancelledRef = useRef(false);
 
@@ -55,52 +56,54 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
   const loadPdfPreviews = useCallback(async (pdfFile: File) => {
     setIsLoadingPreviews(true);
     setPagePreviews([]);
-    
+
     try {
-      const pdfjsLib = await import('pdfjs-dist');
+      const pdfjsLib = await import("pdfjs-dist");
       configurePdfjsWorker(pdfjsLib);
-      
+
       const arrayBuffer = await pdfFile.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      
+
       setTotalPages(pdf.numPages);
-      
+
       // Generate thumbnails for each page
       const previews: PagePreview[] = [];
       const maxPreviewPages = Math.min(pdf.numPages, 50);
-      
+
       for (let i = 1; i <= maxPreviewPages; i++) {
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({ scale: 0.15 });
-        
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
         if (context) {
           canvas.height = viewport.height;
           canvas.width = viewport.width;
-          
+
           await page.render({
             canvasContext: context,
             viewport: viewport,
           }).promise;
-          
+
           previews.push({
             pageNumber: i,
-            thumbnail: canvas.toDataURL('image/jpeg', 0.6),
+            thumbnail: canvas.toDataURL("image/jpeg", 0.6),
           });
         }
       }
-      
+
       // Add remaining pages without thumbnails
       for (let i = maxPreviewPages + 1; i <= pdf.numPages; i++) {
         previews.push({ pageNumber: i });
       }
-      
+
       setPagePreviews(previews);
     } catch (err) {
-      console.error('Failed to load PDF previews:', err);
-      setError('Failed to load PDF preview. The file may be corrupted or encrypted.');
+      console.error("Failed to load PDF previews:", err);
+      setError(
+        "Failed to load PDF preview. The file may be corrupted or encrypted.",
+      );
     } finally {
       setIsLoadingPreviews(false);
     }
@@ -109,17 +112,20 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
   /**
    * Handle file selected from uploader
    */
-  const handleFilesSelected = useCallback((files: File[]) => {
-    if (files.length > 0) {
-      const selectedFile = files[0];
-      setFile(selectedFile);
-      setError(null);
-      setResult(null);
-      setSelectedPages(new Set());
-      setPageInput('');
-      loadPdfPreviews(selectedFile);
-    }
-  }, [loadPdfPreviews]);
+  const handleFilesSelected = useCallback(
+    (files: File[]) => {
+      if (files.length > 0) {
+        const selectedFile = files[0];
+        setFile(selectedFile);
+        setError(null);
+        setResult(null);
+        setSelectedPages(new Set());
+        setPageInput("");
+        loadPdfPreviews(selectedFile);
+      }
+    },
+    [loadPdfPreviews],
+  );
 
   /**
    * Handle file upload error
@@ -136,10 +142,10 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
     setTotalPages(0);
     setPagePreviews([]);
     setSelectedPages(new Set());
-    setPageInput('');
+    setPageInput("");
     setResult(null);
     setError(null);
-    setStatus('idle');
+    setStatus("idle");
     setProgress(0);
   }, []);
 
@@ -147,7 +153,7 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
    * Toggle page selection
    */
   const handleTogglePage = useCallback((pageNumber: number) => {
-    setSelectedPages(prev => {
+    setSelectedPages((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(pageNumber)) {
         newSet.delete(pageNumber);
@@ -163,7 +169,7 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
    * Select all pages
    */
   const handleSelectAll = useCallback(() => {
-    setSelectedPages(new Set(pagePreviews.map(p => p.pageNumber)));
+    setSelectedPages(new Set(pagePreviews.map((p) => p.pageNumber)));
     setResult(null);
   }, [pagePreviews]);
 
@@ -191,17 +197,17 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
    */
   const handleExtract = useCallback(async () => {
     if (!file) {
-      setError('Please upload a PDF file first.');
+      setError("Please upload a PDF file first.");
       return;
     }
 
     if (selectedPages.size === 0) {
-      setError('Please select at least one page to extract.');
+      setError("Please select at least one page to extract.");
       return;
     }
 
     cancelledRef.current = false;
-    setStatus('processing');
+    setStatus("processing");
     setProgress(0);
     setError(null);
     setResult(null);
@@ -215,27 +221,29 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
         (prog, message) => {
           if (!cancelledRef.current) {
             setProgress(prog);
-            setProgressMessage(message || '');
+            setProgressMessage(message || "");
           }
-        }
+        },
       );
 
       if (cancelledRef.current) {
-        setStatus('idle');
+        setStatus("idle");
         return;
       }
 
       if (output.success && output.result) {
         setResult(output.result as Blob);
-        setStatus('complete');
+        setStatus("complete");
       } else {
-        setError(output.error?.message || 'Failed to extract pages.');
-        setStatus('error');
+        setError(output.error?.message || "Failed to extract pages.");
+        setStatus("error");
       }
     } catch (err) {
       if (!cancelledRef.current) {
-        setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
-        setStatus('error');
+        setError(
+          err instanceof Error ? err.message : "An unexpected error occurred.",
+        );
+        setStatus("error");
       }
     }
   }, [file, selectedPages]);
@@ -245,7 +253,7 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
    */
   const handleCancel = useCallback(() => {
     cancelledRef.current = true;
-    setStatus('idle');
+    setStatus("idle");
     setProgress(0);
   }, []);
 
@@ -258,28 +266,32 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const isProcessing = status === 'processing' || status === 'uploading';
-  const canExtract = file && totalPages > 0 && selectedPages.size > 0 && !isProcessing;
+  const isProcessing = status === "processing" || status === "uploading";
+  const canExtract =
+    file && totalPages > 0 && selectedPages.size > 0 && !isProcessing;
 
   return (
     <div className={`space-y-6 ${className}`.trim()}>
       {/* File Upload Area */}
       {!file && (
         <FileUploader
-          accept={['application/pdf', '.pdf']}
+          accept={["application/pdf", ".pdf"]}
           multiple={false}
           maxFiles={1}
           onFilesSelected={handleFilesSelected}
           onError={handleUploadError}
           disabled={isProcessing}
-          label={tTools('extractPages.uploadLabel') || 'Upload PDF File'}
-          description={tTools('extractPages.uploadDescription') || 'Drag and drop a PDF file here, or click to browse.'}
+          label={tTools("extractPages.uploadLabel") || "Upload PDF File"}
+          description={
+            tTools("extractPages.uploadDescription") ||
+            "Drag and drop a PDF file here, or click to browse."
+          }
         />
       )}
 
       {/* Error Message */}
       {error && (
-        <div 
+        <div
           className="p-4 rounded-[var(--radius-md)] bg-red-50 border border-red-200 text-red-700"
           role="alert"
         >
@@ -292,15 +304,24 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
         <Card variant="outlined">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <svg className="w-10 h-10 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                className="w-10 h-10 text-red-500"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
                 <path d="M14 2v6h6" fill="white" />
-                <text x="7" y="17" fontSize="6" fill="white" fontWeight="bold">PDF</text>
+                <text x="7" y="17" fontSize="6" fill="white" fontWeight="bold">
+                  PDF
+                </text>
               </svg>
               <div>
-                <p className="font-medium text-[hsl(var(--color-foreground))]">{file.name}</p>
+                <p className="font-medium text-[hsl(var(--color-foreground))]">
+                  {file.name}
+                </p>
                 <p className="text-sm text-[hsl(var(--color-muted-foreground))]">
-                  {formatSize(file.size)} • {totalPages} {totalPages === 1 ? 'page' : 'pages'}
+                  {formatSize(file.size)} • {totalPages}{" "}
+                  {totalPages === 1 ? "page" : "pages"}
                 </p>
               </div>
             </div>
@@ -310,7 +331,7 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
               onClick={handleClearFile}
               disabled={isProcessing}
             >
-              {t('buttons.remove') || 'Remove'}
+              {t("buttons.remove") || "Remove"}
             </Button>
           </div>
         </Card>
@@ -321,15 +342,25 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
         <Card variant="outlined" size="lg">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-[hsl(var(--color-foreground))]">
-              {tTools('extractPages.selectTitle') || 'Select Pages to Extract'}
+              {tTools("extractPages.selectTitle") || "Select Pages to Extract"}
               {selectedPages.size > 0 && ` (${selectedPages.size} selected)`}
             </h3>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={handleSelectAll} disabled={isProcessing}>
-                {t('buttons.selectAll') || 'Select All'}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSelectAll}
+                disabled={isProcessing}
+              >
+                {t("buttons.selectAll") || "Select All"}
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleDeselectAll} disabled={isProcessing}>
-                {t('buttons.deselectAll') || 'Deselect All'}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeselectAll}
+                disabled={isProcessing}
+              >
+                {t("buttons.deselectAll") || "Deselect All"}
               </Button>
             </div>
           </div>
@@ -350,12 +381,13 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
               onClick={handleApplyPageInput}
               disabled={isProcessing || !pageInput.trim()}
             >
-              {t('buttons.apply') || 'Apply'}
+              {t("buttons.apply") || "Apply"}
             </Button>
           </div>
 
           <p className="text-sm text-[hsl(var(--color-muted-foreground))] mb-4">
-            {tTools('extractPages.selectHint') || 'Click pages to select them, or enter page numbers/ranges above.'}
+            {tTools("extractPages.selectHint") ||
+              "Click pages to select them, or enter page numbers/ranges above."}
           </p>
 
           {isLoadingPreviews ? (
@@ -363,7 +395,7 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
               <div className="flex flex-col items-center gap-3">
                 <div className="w-8 h-8 border-2 border-[hsl(var(--color-primary))] border-t-transparent rounded-full animate-spin" />
                 <p className="text-sm text-[hsl(var(--color-muted-foreground))]">
-                  {t('status.loading') || 'Loading previews...'}
+                  {t("status.loading") || "Loading previews..."}
                 </p>
               </div>
             </div>
@@ -377,16 +409,19 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
                   disabled={isProcessing}
                   className={`relative aspect-[3/4] rounded-[var(--radius-md)] border-2 overflow-hidden transition-all ${
                     selectedPages.has(preview.pageNumber)
-                      ? 'border-[hsl(var(--color-primary))] ring-2 ring-[hsl(var(--color-primary)/0.3)]'
-                      : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)]'
+                      ? "border-[hsl(var(--color-primary))] ring-2 ring-[hsl(var(--color-primary)/0.3)]"
+                      : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)]"
                   }`}
-                  aria-label={`Page ${preview.pageNumber}${selectedPages.has(preview.pageNumber) ? ' (selected)' : ''}`}
+                  aria-label={`Page ${preview.pageNumber}${selectedPages.has(preview.pageNumber) ? " (selected)" : ""}`}
                 >
                   {preview.thumbnail ? (
-                    <img
+                    <Image
                       src={preview.thumbnail}
                       alt={`Page ${preview.pageNumber}`}
-                      className="w-full h-full object-cover"
+                      fill
+                      unoptimized
+                      sizes="(max-width: 640px) 25vw, (max-width: 768px) 16vw, (max-width: 1024px) 12vw, 10vw"
+                      className="object-cover"
                     />
                   ) : (
                     <div className="w-full h-full bg-[hsl(var(--color-muted))] flex items-center justify-center">
@@ -400,8 +435,18 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
                   </div>
                   {selectedPages.has(preview.pageNumber) && (
                     <div className="absolute top-1 right-1 w-5 h-5 bg-[hsl(var(--color-primary))] rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -433,16 +478,16 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
             disabled={!canExtract}
             loading={isProcessing}
           >
-            {isProcessing 
-              ? (t('status.processing') || 'Processing...') 
-              : (tTools('extractPages.extractButton') || `Extract ${selectedPages.size} Page${selectedPages.size !== 1 ? 's' : ''}`)
-            }
+            {isProcessing
+              ? t("status.processing") || "Processing..."
+              : tTools("extractPages.extractButton") ||
+                `Extract ${selectedPages.size} Page${selectedPages.size !== 1 ? "s" : ""}`}
           </Button>
 
           {result && (
             <DownloadButton
               file={result}
-              filename={file.name.replace('.pdf', '_extracted.pdf')}
+              filename={file.name.replace(".pdf", "_extracted.pdf")}
               variant="secondary"
               size="lg"
               showFileSize
@@ -452,13 +497,14 @@ export function ExtractPagesTool({ className = '' }: ExtractPagesToolProps) {
       )}
 
       {/* Success Message */}
-      {status === 'complete' && result && (
-        <div 
+      {status === "complete" && result && (
+        <div
           className="p-4 rounded-[var(--radius-md)] bg-green-50 border border-green-200 text-green-700"
           role="status"
         >
           <p className="text-sm font-medium">
-            {tTools('extractPages.successMessage') || `Successfully extracted ${selectedPages.size} page(s)! Click the download button to save your file.`}
+            {tTools("extractPages.successMessage") ||
+              `Successfully extracted ${selectedPages.size} page(s)! Click the download button to save your file.`}
           </p>
         </div>
       )}

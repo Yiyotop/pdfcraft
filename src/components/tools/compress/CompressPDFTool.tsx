@@ -1,28 +1,46 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
-import { FileUploader } from '../FileUploader';
-import { ProcessingProgress } from '../ProcessingProgress';
-import { DownloadButton } from '../DownloadButton';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { compressPDF, type CompressionQuality, type CompressionAlgorithm } from '@/lib/pdf/processors/compress';
-import { useBatchProcessing, type BatchFile } from '@/lib/hooks/useBatchProcessing';
-import { loadPdfjs } from '@/lib/pdf/loader';
-import { Trash2, FileArchive, Check, AlertCircle, Loader2, X, Scaling, Eye, Sliders } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import NextImage from "next/image";
+import { useTranslations } from "next-intl";
+import { FileUploader } from "../FileUploader";
+import { ProcessingProgress } from "../ProcessingProgress";
+import { DownloadButton } from "../DownloadButton";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import {
+  compressPDF,
+  type CompressionQuality,
+  type CompressionAlgorithm,
+} from "@/lib/pdf/processors/compress";
+import {
+  useBatchProcessing,
+  type BatchFile,
+} from "@/lib/hooks/useBatchProcessing";
+import { loadPdfjs } from "@/lib/pdf/loader";
+import {
+  Trash2,
+  FileArchive,
+  Check,
+  AlertCircle,
+  Loader2,
+  X,
+  Scaling,
+  Eye,
+  Sliders,
+} from "lucide-react";
 
 export interface CompressPDFToolProps {
   className?: string;
 }
 
-export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
-  const t = useTranslations('common');
-  const tTools = useTranslations('tools');
+export function CompressPDFTool({ className = "" }: CompressPDFToolProps) {
+  const t = useTranslations("common");
+  const tTools = useTranslations("tools");
 
   // Options
-  const [algorithm, setAlgorithm] = useState<CompressionAlgorithm>('condense');
-  const [quality, setQuality] = useState<CompressionQuality>('medium');
+  const [algorithm, setAlgorithm] = useState<CompressionAlgorithm>("condense");
+  const [quality, setQuality] = useState<CompressionQuality>("medium");
   const [removeMetadata, setRemoveMetadata] = useState(false);
   const [optimizeImages, setOptimizeImages] = useState(true);
   const [photonDpi, setPhotonDpi] = useState(150);
@@ -30,13 +48,17 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
 
   // Single File Workspace (Magnifier & Physics balance)
   const [singleFile, setSingleFile] = useState<File | null>(null);
-  const [pdfPageImage, setPdfPageImage] = useState<string>('');
-  const [compressedImage, setCompressedImage] = useState<string>('');
+  const [pdfPageImage, setPdfPageImage] = useState<string>("");
+  const [compressedImage, setCompressedImage] = useState<string>("");
   const [sliderPosition, setSliderPosition] = useState<number>(50);
   const [showCompare, setShowCompare] = useState<boolean>(true);
 
   // Magnifier positioning
-  const [magCoords, setMagCoords] = useState<{ x: number; y: number; show: boolean }>({ x: 0, y: 0, show: false });
+  const [magCoords, setMagCoords] = useState<{
+    x: number;
+    y: number;
+    show: boolean;
+  }>({ x: 0, y: 0, show: false });
   const viewContainerRef = useRef<HTMLDivElement>(null);
 
   // Batch processing hook
@@ -59,47 +81,64 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
   /**
    * Render first page to Canvas for magnifier preview comparison
    */
-  const renderPreview = async (fileToRender: File) => {
-    try {
-      const pdfjs = await loadPdfjs();
-      const arrayBuffer = await fileToRender.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1);
-      
-      const viewport = page.getViewport({ scale: 1.0 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        const originalUrl = canvas.toDataURL('image/jpeg', 1.0);
-        setPdfPageImage(originalUrl);
-        
-        // Frontend simulated compression based on current selected quality
-        const compQuality = quality === 'low' ? 0.35 : quality === 'medium' ? 0.6 : quality === 'high' ? 0.8 : 0.95;
-        const compressedUrl = canvas.toDataURL('image/jpeg', compQuality);
-        setCompressedImage(compressedUrl);
+  const renderPreview = useCallback(
+    async (fileToRender: File) => {
+      try {
+        const pdfjs = await loadPdfjs();
+        const arrayBuffer = await fileToRender.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+
+        const viewport = page.getViewport({ scale: 1.0 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const originalUrl = canvas.toDataURL("image/jpeg", 1.0);
+          setPdfPageImage(originalUrl);
+
+          // Frontend simulated compression based on current selected quality
+          const compQuality =
+            quality === "low"
+              ? 0.35
+              : quality === "medium"
+                ? 0.6
+                : quality === "high"
+                  ? 0.8
+                  : 0.95;
+          const compressedUrl = canvas.toDataURL("image/jpeg", compQuality);
+          setCompressedImage(compressedUrl);
+        }
+      } catch (e) {
+        console.error("Failed to render PDF page comparison preview:", e);
       }
-    } catch (e) {
-      console.error('Failed to render PDF page comparison preview:', e);
-    }
-  };
+    },
+    [quality],
+  );
 
   // Re-generate preview when quality changes
   useEffect(() => {
     if (singleFile && pdfPageImage) {
-      const canvas = document.createElement('canvas');
-      const img = new Image();
+      const canvas = document.createElement("canvas");
+      const img = new window.Image();
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(img, 0, 0);
-          const compQuality = quality === 'low' ? 0.35 : quality === 'medium' ? 0.6 : quality === 'high' ? 0.8 : 0.95;
-          const compressedUrl = canvas.toDataURL('image/jpeg', compQuality);
+          const compQuality =
+            quality === "low"
+              ? 0.35
+              : quality === "medium"
+                ? 0.6
+                : quality === "high"
+                  ? 0.8
+                  : 0.95;
+          const compressedUrl = canvas.toDataURL("image/jpeg", compQuality);
           setCompressedImage(compressedUrl);
         }
       };
@@ -110,20 +149,23 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
   /**
    * Handle files selected from uploader
    */
-  const handleFilesSelected = useCallback((newFiles: File[]) => {
-    if (newFiles.length > 0) {
-      addFiles(newFiles);
-      setError(null);
-      
-      // Load first file as preview metadata if single
-      if (newFiles.length === 1) {
-        setSingleFile(newFiles[0]);
-        renderPreview(newFiles[0]);
-      } else {
-        setSingleFile(null);
+  const handleFilesSelected = useCallback(
+    (newFiles: File[]) => {
+      if (newFiles.length > 0) {
+        addFiles(newFiles);
+        setError(null);
+
+        // Load first file as preview metadata if single
+        if (newFiles.length === 1) {
+          setSingleFile(newFiles[0]);
+          renderPreview(newFiles[0]);
+        } else {
+          setSingleFile(null);
+        }
       }
-    }
-  }, [addFiles]);
+    },
+    [addFiles, renderPreview],
+  );
 
   /**
    * Handle single file drop removal
@@ -131,72 +173,79 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
   const handleClearSingleFile = () => {
     handleClearFile();
     setSingleFile(null);
-    setPdfPageImage('');
-    setCompressedImage('');
+    setPdfPageImage("");
+    setCompressedImage("");
   };
 
   const handleClearFile = () => {
     clearFiles();
     setSingleFile(null);
-    setPdfPageImage('');
-    setCompressedImage('');
+    setPdfPageImage("");
+    setCompressedImage("");
   };
 
   /**
    * Compress processor for batch processing
    */
-  const compressProcessor = useCallback(async (
-    file: File,
-    onProgress: (progress: number) => void
-  ): Promise<Blob> => {
-    const options = {
-      algorithm,
-      quality,
-      removeMetadata,
-      optimizeImages,
-      removeUnusedObjects: true,
-      photonDpi,
-      photonFormat: 'jpeg' as const,
-      photonQuality: quality === 'low' ? 60 : quality === 'medium' ? 75 : 85,
-    };
+  const compressProcessor = useCallback(
+    async (
+      file: File,
+      onProgress: (progress: number) => void,
+    ): Promise<Blob> => {
+      const options = {
+        algorithm,
+        quality,
+        removeMetadata,
+        optimizeImages,
+        removeUnusedObjects: true,
+        photonDpi,
+        photonFormat: "jpeg" as const,
+        photonQuality: quality === "low" ? 60 : quality === "medium" ? 75 : 85,
+      };
 
-    const output = await compressPDF(
-      file,
-      options,
-      (prog) => onProgress(prog)
-    );
+      const output = await compressPDF(file, options, (prog) =>
+        onProgress(prog),
+      );
 
-    if (output.success && output.result) {
-      return output.result as Blob;
-    }
+      if (output.success && output.result) {
+        return output.result as Blob;
+      }
 
-    throw new Error(output.error?.message || 'Failed to compress PDF file.');
-  }, [algorithm, quality, removeMetadata, optimizeImages, photonDpi]);
+      throw new Error(output.error?.message || "Failed to compress PDF file.");
+    },
+    [algorithm, quality, removeMetadata, optimizeImages, photonDpi],
+  );
 
   /**
    * Handle compress operation
    */
   const handleCompress = useCallback(async () => {
     if (files.length === 0) {
-      setError('Please select PDF files to compress.');
+      setError("Please select PDF files to compress.");
       return;
     }
     setError(null);
-    
+
     // For single file mode, clear preview during processing
     if (singleFile && pdfPageImage) {
-      setPdfPageImage('');
-      setCompressedImage('');
+      setPdfPageImage("");
+      setCompressedImage("");
     }
-    
+
     await startProcessing(compressProcessor);
-  }, [files.length, singleFile, pdfPageImage, startProcessing, compressProcessor]);
+  }, [
+    files.length,
+    singleFile,
+    pdfPageImage,
+    startProcessing,
+    compressProcessor,
+  ]);
 
   /**
    * Handle download as ZIP
    */
   const handleDownloadZip = useCallback(async () => {
-    await downloadAsZip('compressed-pdfs.zip');
+    await downloadAsZip("compressed-pdfs.zip");
   }, [downloadAsZip]);
 
   /**
@@ -205,11 +254,16 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
    */
   const getBalanceBeamRotation = () => {
     switch (quality) {
-      case 'low': return -15; // beam tilts left (left side goes up)
-      case 'medium': return -5;
-      case 'high': return 5;
-      case 'maximum': return 15; // beam tilts right (right side goes up)
-      default: return 0;
+      case "low":
+        return -15; // beam tilts left (left side goes up)
+      case "medium":
+        return -5;
+      case "high":
+        return 5;
+      case "maximum":
+        return 15; // beam tilts right (right side goes up)
+      default:
+        return 0;
     }
   };
 
@@ -221,7 +275,7 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
     const rect = viewContainerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     // Check boundaries
     if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
       setMagCoords({ x, y, show: true });
@@ -237,18 +291,20 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
 
   return (
     <div className={`space-y-6 ${className}`.trim()}>
-      
       {/* File Upload Area */}
       {!hasFiles && (
         <FileUploader
-          accept={['application/pdf', '.pdf']}
+          accept={["application/pdf", ".pdf"]}
           multiple={true}
           maxFiles={10}
           onFilesSelected={handleFilesSelected}
           onError={setError}
           disabled={isProcessing}
-          label={tTools('compressPdf.uploadLabel') || 'Upload PDF Files'}
-          description={tTools('compressPdf.batchUploadDescription') || 'Drag and drop PDF files here. Support up to 10 files.'}
+          label={tTools("compressPdf.uploadLabel") || "Upload PDF Files"}
+          description={
+            tTools("compressPdf.batchUploadDescription") ||
+            "Drag and drop PDF files here. Support up to 10 files."
+          }
         />
       )}
 
@@ -264,20 +320,30 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
         <Card variant="outlined">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-[hsl(var(--color-foreground))]">
-              {t('compress.waitingFiles', { count: files.length })}
+              {t("compress.waitingFiles", { count: files.length })}
             </h3>
-            <Button variant="ghost" size="sm" onClick={handleClearFile} disabled={isProcessing}>
-              {t('compress.clearAll')}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFile}
+              disabled={isProcessing}
+            >
+              {t("compress.clearAll")}
             </Button>
           </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {files.map((bf) => (
-              <div key={bf.id} className="flex items-center justify-between p-3 bg-[hsl(var(--color-muted)/0.3)] border border-[hsl(var(--color-border))] rounded-xl">
-                <span className="text-xs font-semibold truncate max-w-sm">{bf.file.name}</span>
-                {bf.status === 'completed' && bf.result && (
+              <div
+                key={bf.id}
+                className="flex items-center justify-between p-3 bg-[hsl(var(--color-muted)/0.3)] border border-[hsl(var(--color-border))] rounded-xl"
+              >
+                <span className="text-xs font-semibold truncate max-w-sm">
+                  {bf.file.name}
+                </span>
+                {bf.status === "completed" && bf.result && (
                   <DownloadButton
                     file={bf.result}
-                    filename={`${bf.file.name.replace('.pdf', '')}_compressed.pdf`}
+                    filename={`${bf.file.name.replace(".pdf", "")}_compressed.pdf`}
                     variant="ghost"
                     size="sm"
                   />
@@ -291,24 +357,26 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
             {/* Quality Options */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-[hsl(var(--color-muted-foreground))] uppercase tracking-wider">
-                {t('compress.qualityTitle')}
+                {t("compress.qualityTitle")}
               </label>
               <div className="grid grid-cols-4 gap-2">
-                {(['low', 'medium', 'high', 'maximum'] as CompressionQuality[]).map((q) => (
+                {(
+                  ["low", "medium", "high", "maximum"] as CompressionQuality[]
+                ).map((q) => (
                   <button
                     key={q}
                     onClick={() => setQuality(q)}
                     disabled={isProcessing}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
                       quality === q
-                        ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.08)] text-[hsl(var(--color-foreground))]'
-                        : 'border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/20 text-zinc-500'
+                        ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.08)] text-[hsl(var(--color-foreground))]"
+                        : "border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/20 text-zinc-500"
                     }`}
                   >
-                    {q === 'low' && t('compress.qualityLow')}
-                    {q === 'medium' && t('compress.qualityMedium')}
-                    {q === 'high' && t('compress.qualityHigh')}
-                    {q === 'maximum' && t('compress.qualityMaximum')}
+                    {q === "low" && t("compress.qualityLow")}
+                    {q === "medium" && t("compress.qualityMedium")}
+                    {q === "high" && t("compress.qualityHigh")}
+                    {q === "maximum" && t("compress.qualityMaximum")}
                   </button>
                 ))}
               </div>
@@ -320,15 +388,17 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
                 Compression Algorithm
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {(['standard', 'condense', 'photon'] as CompressionAlgorithm[]).map((alg) => (
+                {(
+                  ["standard", "condense", "photon"] as CompressionAlgorithm[]
+                ).map((alg) => (
                   <button
                     key={alg}
                     onClick={() => setAlgorithm(alg)}
                     disabled={isProcessing}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
                       algorithm === alg
-                        ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.08)] text-[hsl(var(--color-foreground))]'
-                        : 'border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/20 text-zinc-500'
+                        ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.08)] text-[hsl(var(--color-foreground))]"
+                        : "border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/20 text-zinc-500"
                     }`}
                   >
                     {alg.charAt(0).toUpperCase() + alg.slice(1)}
@@ -347,7 +417,9 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
                   disabled={isProcessing}
                   className="w-4 h-4 rounded border-zinc-300 text-[hsl(var(--color-primary))] focus:ring-[hsl(var(--color-primary))]"
                 />
-                <span className="text-sm">{t('compress.optimizeGraphics')}</span>
+                <span className="text-sm">
+                  {t("compress.optimizeGraphics")}
+                </span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -357,7 +429,7 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
                   disabled={isProcessing}
                   className="w-4 h-4 rounded border-zinc-300 text-[hsl(var(--color-primary))] focus:ring-[hsl(var(--color-primary))]"
                 />
-                <span className="text-sm">{t('compress.clearMetadata')}</span>
+                <span className="text-sm">{t("compress.clearMetadata")}</span>
               </label>
             </div>
 
@@ -370,7 +442,9 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
               disabled={!canCompress}
               loading={isProcessing}
             >
-              {isProcessing ? t('compress.processingButton') : (tTools('compressPdf.compressButton') || 'Compress PDF')}
+              {isProcessing
+                ? t("compress.processingButton")
+                : tTools("compressPdf.compressButton") || "Compress PDF"}
             </Button>
           </div>
         </Card>
@@ -379,56 +453,66 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
       {/* Single File preview Workspace (Compare + Physics balance) */}
       {singleFile && pdfPageImage && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-          
           {/* LEFT: Split screen live comparison */}
           <div className="lg:col-span-7 flex flex-col space-y-4">
-            <Card variant="outlined" className="p-4 bg-zinc-100 dark:bg-zinc-950 rounded-[2rem] flex flex-col justify-between shadow-inner h-full min-h-[480px]">
-              
+            <Card
+              variant="outlined"
+              className="p-4 bg-zinc-100 dark:bg-zinc-950 rounded-[2rem] flex flex-col justify-between shadow-inner h-full min-h-[480px]"
+            >
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
                 <span className="text-xs font-bold text-[hsl(var(--color-foreground))] flex items-center gap-1.5">
                   <Eye className="w-4 h-4 text-zinc-400" />
-                  {t('compress.sliderTooltip')}
+                  {t("compress.sliderTooltip")}
                 </span>
                 <span className="text-[10px] text-zinc-400">
-                  {t('compress.qualityCompare', { quality: quality.toUpperCase() })}
+                  {t("compress.qualityCompare", {
+                    quality: quality.toUpperCase(),
+                  })}
                 </span>
               </div>
 
               {/* Split screen content workspace */}
-              <div 
+              <div
                 ref={viewContainerRef}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => setMagCoords((prev) => ({ ...prev, show: false }))}
+                onMouseLeave={() =>
+                  setMagCoords((prev) => ({ ...prev, show: false }))
+                }
                 className="flex-1 flex items-center justify-center p-4 relative overflow-hidden select-none cursor-crosshair min-h-[380px]"
               >
-                
                 {/* 1. Original Base Page image */}
-                <img 
-                  src={pdfPageImage} 
-                  alt="Original layout" 
-                  className="max-h-[380px] object-contain select-none"
+                <NextImage
+                  src={pdfPageImage}
+                  alt="Original layout"
+                  width={1200}
+                  height={1600}
+                  unoptimized
                   draggable={false}
+                  className="w-full max-h-[380px] object-contain select-none" // 💡 Mantiene el control del tamaño y proporciones en el layout
                 />
 
                 {/* 2. Compressed Overlaid Image with dynamic clip-path */}
                 {compressedImage && (
-                  <div 
+                  <div
                     className="absolute inset-0 flex items-center justify-center pointer-events-none"
                     style={{
-                      clipPath: `inset(0 0 0 ${sliderPosition}%)`
+                      clipPath: `inset(0 0 0 ${sliderPosition}%)`,
                     }}
                   >
-                    <img 
-                      src={compressedImage} 
-                      alt="Compressed preview" 
-                      className="max-h-[380px] object-contain select-none"
+                    <NextImage
+                      src={compressedImage}
+                      alt="Compressed preview"
+                      width={1200}
+                      height={1600}
+                      unoptimized
+                      className="max-h-[380px] w-auto h-auto object-contain select-none"
                       draggable={false}
                     />
                   </div>
                 )}
 
                 {/* 3. Sliding split line */}
-                <div 
+                <div
                   className="absolute top-0 bottom-0 w-1 bg-amber-500 cursor-ew-resize z-20"
                   style={{ left: `${sliderPosition}%` }}
                 >
@@ -438,7 +522,7 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
                 </div>
 
                 {/* Split line cover panel for dragging */}
-                <input 
+                <input
                   type="range"
                   min="0"
                   max="100"
@@ -449,129 +533,218 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
 
                 {/* 4. WOW 3D refractive floating Magnifier loupe */}
                 {magCoords.show && (
-                  <div 
+                  <div
                     className="absolute w-32 h-32 rounded-full border-4 border-white/80 bg-white shadow-[0_15px_35px_rgba(0,0,0,0.3)] z-40 pointer-events-none overflow-hidden"
                     style={{
                       left: magCoords.x - 64,
                       top: magCoords.y - 64,
-                      transform: 'perspective(400px) rotateX(4deg) translateZ(10px)',
+                      transform:
+                        "perspective(400px) rotateX(4deg) translateZ(10px)",
                     }}
                   >
                     {/* Zoomed in Canvas snapshot reflection */}
-                    <div 
+                    <div
                       className="absolute w-[200%] h-[200%]"
                       style={{
-                        backgroundImage: `url(${magCoords.x / (viewContainerRef.current?.getBoundingClientRect().width || 1) * 100 > sliderPosition ? compressedImage : pdfPageImage})`,
-                        backgroundSize: '380px',
-                        backgroundPosition: `-${(magCoords.x * 2) - 64}px -${(magCoords.y * 2) - 64}px`,
-                        backgroundRepeat: 'no-repeat',
+                        backgroundImage: `url(${(magCoords.x / (viewContainerRef.current?.getBoundingClientRect().width || 1)) * 100 > sliderPosition ? compressedImage : pdfPageImage})`,
+                        backgroundSize: "380px",
+                        backgroundPosition: `-${magCoords.x * 2 - 64}px -${magCoords.y * 2 - 64}px`,
+                        backgroundRepeat: "no-repeat",
                       }}
                     />
                     {/* Glass glare effect */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/20" />
                   </div>
                 )}
-
               </div>
-
             </Card>
           </div>
 
           {/* RIGHT: Controls & Physics Balance Beam */}
           <div className="lg:col-span-5 flex flex-col space-y-6 justify-between">
-            <Card variant="default" className="p-6 rounded-[2rem] border border-white/20 dark:border-zinc-800/40 bg-white/40 dark:bg-black/30 backdrop-blur-md flex flex-col justify-between h-full shadow-xl">
-              
+            <Card
+              variant="default"
+              className="p-6 rounded-[2rem] border border-white/20 dark:border-zinc-800/40 bg-white/40 dark:bg-black/30 backdrop-blur-md flex flex-col justify-between h-full shadow-xl"
+            >
               <div className="space-y-6">
-                
                 {/* 3D Physics Balance beam representation */}
                 <div className="flex flex-col items-center justify-center p-4 bg-zinc-900/35 border border-zinc-800 rounded-2xl relative overflow-hidden">
-                  
                   {/* Balancing Scale SVG */}
                   <svg className="w-full h-24" viewBox="0 0 200 80">
                     <defs>
-                      <radialGradient id="weight-glow" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="hsl(var(--color-primary))" stopOpacity="0.4" />
-                        <stop offset="100%" stopColor="hsl(var(--color-primary))" stopOpacity="0" />
+                      <radialGradient
+                        id="weight-glow"
+                        cx="50%"
+                        cy="50%"
+                        r="50%"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="hsl(var(--color-primary))"
+                          stopOpacity="0.4"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="hsl(var(--color-primary))"
+                          stopOpacity="0"
+                        />
                       </radialGradient>
                     </defs>
-                    
+
                     {/* Center stand column */}
-                    <line x1="100" y1="20" x2="100" y2="70" stroke="#71717a" strokeWidth="4" />
-                    <line x1="80" y1="70" x2="120" y2="70" stroke="#71717a" strokeWidth="6" strokeLinecap="round" />
+                    <line
+                      x1="100"
+                      y1="20"
+                      x2="100"
+                      y2="70"
+                      stroke="#71717a"
+                      strokeWidth="4"
+                    />
+                    <line
+                      x1="80"
+                      y1="70"
+                      x2="120"
+                      y2="70"
+                      stroke="#71717a"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                    />
 
                     {/* Rotatable beam */}
-                    <g 
-                      style={{ 
+                    <g
+                      style={{
                         transform: `rotate(${getBalanceBeamRotation()}deg)`,
-                        transformOrigin: '100px 30px',
-                        transition: 'transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                        transformOrigin: "100px 30px",
+                        transition:
+                          "transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
                       }}
                     >
-                      <line x1="30" y1="30" x2="170" y2="30" stroke="#a1a1aa" strokeWidth="3" />
+                      <line
+                        x1="30"
+                        y1="30"
+                        x2="170"
+                        y2="30"
+                        stroke="#a1a1aa"
+                        strokeWidth="3"
+                      />
                       <circle cx="100" cy="30" r="4" fill="#18181b" />
 
                       {/* Left pan assembly (size / volume weight) */}
-                      <line x1="30" y1="30" x2="30" y2="55" stroke="#71717a" strokeWidth="1" />
-                      <path d="M15 55 L45 55" stroke="#71717a" strokeWidth="3" strokeLinecap="round" />
+                      <line
+                        x1="30"
+                        y1="30"
+                        x2="30"
+                        y2="55"
+                        stroke="#71717a"
+                        strokeWidth="1"
+                      />
+                      <path
+                        d="M15 55 L45 55"
+                        stroke="#71717a"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
                       {/* Weight item (becomes bigger/smaller based on quality) */}
-                      <circle 
-                        cx="30" 
-                        cy="48" 
-                        r={quality === 'low' ? 4 : quality === 'medium' ? 7 : quality === 'high' ? 10 : 13} 
-                        fill={quality === 'low' ? '#10b981' : '#f59e0b'} 
+                      <circle
+                        cx="30"
+                        cy="48"
+                        r={
+                          quality === "low"
+                            ? 4
+                            : quality === "medium"
+                              ? 7
+                              : quality === "high"
+                                ? 10
+                                : 13
+                        }
+                        fill={quality === "low" ? "#10b981" : "#f59e0b"}
                         className="transition-all duration-500"
                       />
 
                       {/* Right pan assembly (visual quality details weight) */}
-                      <line x1="170" y1="30" x2="170" y2="55" stroke="#71717a" strokeWidth="1" />
-                      <path d="M155 55 L185 55" stroke="#71717a" strokeWidth="3" strokeLinecap="round" />
+                      <line
+                        x1="170"
+                        y1="30"
+                        x2="170"
+                        y2="55"
+                        stroke="#71717a"
+                        strokeWidth="1"
+                      />
+                      <path
+                        d="M155 55 L185 55"
+                        stroke="#71717a"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
                       {/* Quality details item (brighter as quality goes up) */}
-                      <circle 
-                        cx="170" 
-                        cy="48" 
-                        r={quality === 'low' ? 13 : quality === 'medium' ? 10 : quality === 'high' ? 7 : 4} 
-                        fill="#3b82f6" 
+                      <circle
+                        cx="170"
+                        cy="48"
+                        r={
+                          quality === "low"
+                            ? 13
+                            : quality === "medium"
+                              ? 10
+                              : quality === "high"
+                                ? 7
+                                : 4
+                        }
+                        fill="#3b82f6"
                         className="transition-all duration-500"
-                        opacity={quality === 'low' ? 0.3 : quality === 'medium' ? 0.6 : quality === 'high' ? 0.8 : 1.0}
+                        opacity={
+                          quality === "low"
+                            ? 0.3
+                            : quality === "medium"
+                              ? 0.6
+                              : quality === "high"
+                                ? 0.8
+                                : 1.0
+                        }
                       />
                     </g>
                   </svg>
-                  
-                  <div className="flex w-full justify-between px-6 text-[10px] font-bold text-zinc-400">
-                    {t('compress.sizeShrink')}
-                    {t('compress.pixelSharpness')}
-                  </div>
 
+                  <div className="flex w-full justify-between px-6 text-[10px] font-bold text-zinc-400">
+                    {t("compress.sizeShrink")}
+                    {t("compress.pixelSharpness")}
+                  </div>
                 </div>
 
                 {/* Quality options */}
                 <div className="space-y-3.5">
                   <label className="text-xs font-bold text-[hsl(var(--color-muted-foreground))] uppercase tracking-wider flex items-center gap-1.5">
-                    {t('compress.qualityTitle')}
+                    {t("compress.qualityTitle")}
                   </label>
                   <div className="grid grid-cols-4 gap-1.5">
-                    {(['low', 'medium', 'high', 'maximum'] as CompressionQuality[]).map((q) => (
+                    {(
+                      [
+                        "low",
+                        "medium",
+                        "high",
+                        "maximum",
+                      ] as CompressionQuality[]
+                    ).map((q) => (
                       <button
                         key={q}
                         onClick={() => setQuality(q)}
                         className={`py-2 rounded-xl text-xs font-extrabold transition-all border ${
                           quality === q
-                            ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.08)] text-[hsl(var(--color-foreground))]'
-                            : 'border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/20 text-zinc-500'
+                            ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.08)] text-[hsl(var(--color-foreground))]"
+                            : "border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/20 text-zinc-500"
                         }`}
                       >
-                        {q === 'low' && t('compress.qualityLow')}
-                        {q === 'medium' && t('compress.qualityMedium')}
-                        {q === 'high' && t('compress.qualityHigh')}
-                        {q === 'maximum' && t('compress.qualityMaximum')}
+                        {q === "low" && t("compress.qualityLow")}
+                        {q === "medium" && t("compress.qualityMedium")}
+                        {q === "high" && t("compress.qualityHigh")}
+                        {q === "maximum" && t("compress.qualityMaximum")}
                       </button>
                     ))}
                   </div>
                   <p className="text-[10px] text-zinc-400 leading-normal">
-                    {quality === 'low' && t('compress.descLow')}
-                    {quality === 'medium' && t('compress.descMedium')}
-                    {quality === 'high' && t('compress.descHigh')}
-                    {quality === 'maximum' && t('compress.descMaximum')}
+                    {quality === "low" && t("compress.descLow")}
+                    {quality === "medium" && t("compress.descMedium")}
+                    {quality === "high" && t("compress.descHigh")}
+                    {quality === "maximum" && t("compress.descMaximum")}
                   </p>
                 </div>
 
@@ -584,7 +757,7 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
                       onChange={(e) => setOptimizeImages(e.target.checked)}
                       className="w-4 h-4 rounded border-zinc-300 text-[hsl(var(--color-primary))] focus:ring-[hsl(var(--color-primary))]"
                     />
-                    {t('compress.optimizeGraphics')}
+                    {t("compress.optimizeGraphics")}
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -593,16 +766,20 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
                       onChange={(e) => setRemoveMetadata(e.target.checked)}
                       className="w-4 h-4 rounded border-zinc-300 text-[hsl(var(--color-primary))] focus:ring-[hsl(var(--color-primary))]"
                     />
-                    {t('compress.clearMetadata')}
+                    {t("compress.clearMetadata")}
                   </label>
                 </div>
-
               </div>
 
               {/* Compression Actions */}
               <div className="pt-6 border-t border-[hsl(var(--color-border))]">
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleClearSingleFile} disabled={isProcessing}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearSingleFile}
+                    disabled={isProcessing}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                   <Button
@@ -613,14 +790,14 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
                     disabled={!canCompress}
                     loading={isProcessing}
                   >
-                    {isProcessing ? t('compress.processingButton') : (tTools('compressPdf.compressButton') || 'Compress PDF')}
+                    {isProcessing
+                      ? t("compress.processingButton")
+                      : tTools("compressPdf.compressButton") || "Compress PDF"}
                   </Button>
                 </div>
               </div>
-
             </Card>
           </div>
-
         </div>
       )}
 
@@ -629,7 +806,7 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
         <ProcessingProgress
           progress={overallProgress}
           status="processing"
-          message={`Compressing ${completedCount + 1}/${files.length}...`}
+          message={`Progreso global: ${overallProgress}% (${completedCount}/${files.length} completados)`}
           onCancel={cancelProcessing}
           showPercentage
         />
@@ -637,12 +814,15 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
 
       {/* Download Zip Panel for Batch */}
       {allCompleted && !singleFile && (
-        <Card variant="default" className="p-6 rounded-[2rem] text-center space-y-4">
-          {t('compress.successTitle')}
+        <Card
+          variant="default"
+          className="p-6 rounded-[2rem] text-center space-y-4"
+        >
+          {t("compress.successTitle")}
           <div className="flex gap-2 justify-center">
             <Button variant="secondary" onClick={handleDownloadZip}>
               <FileArchive className="w-4 h-4 mr-2" />
-              {t('compress.zipDownload', { count: completedCount })}
+              {t("compress.zipDownload", { count: completedCount })}
             </Button>
           </div>
         </Card>
@@ -650,17 +830,32 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
 
       {/* Single download outcome */}
       {allCompleted && singleFile && completedCount > 0 && (
-        <Card variant="default" className="p-8 rounded-[2rem] text-center space-y-6 shadow-xl animate-in zoom-in-95 duration-300">
+        <Card
+          variant="default"
+          className="p-8 rounded-[2rem] text-center space-y-6 shadow-xl animate-in zoom-in-95 duration-300"
+        >
           <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-8 h-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
-          
+
           <div className="space-y-2 max-w-sm mx-auto">
-            {t('compress.successDone')}
+            {t("compress.successDone")}
             <p className="text-xs text-[hsl(var(--color-muted-foreground))]">
-              {t('compress.sizeInfo', { size: (singleFile.size / (1024 * 1024)).toFixed(2) })}
+              {t("compress.sizeInfo", {
+                size: (singleFile.size / (1024 * 1024)).toFixed(2),
+              })}
             </p>
           </div>
 
@@ -671,11 +866,11 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
               className="font-bold"
               onClick={handleClearSingleFile}
             >
-              {t('buttons.clear') || 'Clear'}
+              {t("buttons.clear") || "Clear"}
             </Button>
             <DownloadButton
               file={files[0].result!}
-              filename={`${singleFile.name.replace('.pdf', '')}_compressed.pdf`}
+              filename={`${singleFile.name.replace(".pdf", "")}_compressed.pdf`}
               variant="primary"
               size="lg"
               className="flex-1 font-bold shadow-lg"
@@ -684,7 +879,6 @@ export function CompressPDFTool({ className = '' }: CompressPDFToolProps) {
           </div>
         </Card>
       )}
-
     </div>
   );
 }

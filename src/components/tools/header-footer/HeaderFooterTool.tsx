@@ -1,26 +1,32 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
-import { FileUploader } from '../FileUploader';
-import { ProcessingProgress, ProcessingStatus } from '../ProcessingProgress';
-import { DownloadButton } from '../DownloadButton';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { addHeaderFooter, HeaderFooterOptions } from '@/lib/pdf/processors/header-footer';
-import type { ProcessOutput } from '@/types/pdf';
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { FileUploader } from "../FileUploader";
+import { ProcessingProgress, ProcessingStatus } from "../ProcessingProgress";
+import { DownloadButton } from "../DownloadButton";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import {
+  addHeaderFooter,
+  HeaderFooterOptions,
+} from "@/lib/pdf/processors/header-footer";
+import type { ProcessOutput } from "@/types/pdf";
 
 // Store pdfjs module reference
-let pdfjsModule: typeof import('pdfjs-dist') | null = null;
+let pdfjsModule: typeof import("pdfjs-dist") | null = null;
 
 // Load pdfjs module dynamically
 const loadPdfjsLib = async () => {
   if (pdfjsModule) return pdfjsModule;
 
-  const pdfjsLib = await import('pdfjs-dist');
-  const { configurePdfjsWorker } = await import('@/lib/pdf/loader');
+  const pdfjsLib = await import("pdfjs-dist");
+  const { configurePdfjsWorker } = await import("@/lib/pdf/loader");
 
-  if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+  if (
+    typeof window !== "undefined" &&
+    !pdfjsLib.GlobalWorkerOptions.workerSrc
+  ) {
     configurePdfjsWorker(pdfjsLib);
   }
 
@@ -32,29 +38,29 @@ export interface HeaderFooterToolProps {
   className?: string;
 }
 
-export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
-  const t = useTranslations('common');
-  const tTools = useTranslations('tools');
+export function HeaderFooterTool({ className = "" }: HeaderFooterToolProps) {
+  const t = useTranslations("common");
+  const tTools = useTranslations("tools");
 
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<ProcessingStatus>('idle');
+  const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [progress, setProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState('');
+  const [progressMessage, setProgressMessage] = useState("");
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Header/Footer options
-  const [headerLeft, setHeaderLeft] = useState('');
-  const [headerCenter, setHeaderCenter] = useState('');
-  const [headerRight, setHeaderRight] = useState('');
-  const [footerLeft, setFooterLeft] = useState('');
-  const [footerCenter, setFooterCenter] = useState('Page {page} of {total}');
-  const [footerRight, setFooterRight] = useState('{date}');
+  const [headerLeft, setHeaderLeft] = useState("");
+  const [headerCenter, setHeaderCenter] = useState("");
+  const [headerRight, setHeaderRight] = useState("");
+  const [footerLeft, setFooterLeft] = useState("");
+  const [footerCenter, setFooterCenter] = useState("Page {page} of {total}");
+  const [footerRight, setFooterRight] = useState("{date}");
   const [fontSize, setFontSize] = useState(10);
-  const [fontColor, setFontColor] = useState('#000000');
+  const [fontColor, setFontColor] = useState("#000000");
   const [margin, setMargin] = useState(30);
   const [skipFirstPage, setSkipFirstPage] = useState(false);
-  const [pageRange, setPageRange] = useState('all');
+  const [pageRange, setPageRange] = useState("all");
 
   // Preview state
   const [totalPages, setTotalPages] = useState(0);
@@ -72,7 +78,7 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
       setTotalPages(pdf.numPages);
       renderPagePreview(pdf, 1);
     } catch (err) {
-      console.error('Failed to load PDF preview:', err);
+      console.error("Failed to load PDF preview:", err);
     }
   }, []);
 
@@ -86,7 +92,7 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
       const viewport = page.getViewport({ scale });
 
       const canvas = previewCanvasRef.current;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       canvas.width = viewport.width;
@@ -95,26 +101,41 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
       await page.render({ canvasContext: ctx, viewport }).promise;
 
       // Check if page should show header/footer
-      const shouldShowContent = isPageInRange(pageNum) && !(skipFirstPage && pageNum === 1);
+      const shouldShowContent =
+        isPageInRange(pageNum) && !(skipFirstPage && pageNum === 1);
       if (shouldShowContent) {
-        drawHeaderFooterOverlay(ctx, viewport.width, viewport.height, pageNum, pdf.numPages);
+        drawHeaderFooterOverlay(
+          ctx,
+          viewport.width,
+          viewport.height,
+          pageNum,
+          pdf.numPages,
+        );
       }
-
     } catch (err) {
-      console.error('Failed to render page:', err);
+      console.error("Failed to render page:", err);
     }
   };
 
   // Check if page is in range
   const isPageInRange = (pageNum: number): boolean => {
-    if (!pageRange || pageRange.toLowerCase() === 'all' || pageRange.trim() === '') {
+    if (
+      !pageRange ||
+      pageRange.toLowerCase() === "all" ||
+      pageRange.trim() === ""
+    ) {
       return true;
     }
-    const ranges = pageRange.split(',').map(s => s.trim());
+    const ranges = pageRange.split(",").map((s) => s.trim());
     for (const range of ranges) {
-      if (range.includes('-')) {
-        const [start, end] = range.split('-').map(s => parseInt(s.trim()));
-        if (!isNaN(start) && !isNaN(end) && pageNum >= start && pageNum <= end) {
+      if (range.includes("-")) {
+        const [start, end] = range.split("-").map((s) => parseInt(s.trim()));
+        if (
+          !isNaN(start) &&
+          !isNaN(end) &&
+          pageNum >= start &&
+          pageNum <= end
+        ) {
           return true;
         }
       } else {
@@ -133,7 +154,7 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
     width: number,
     height: number,
     page: number,
-    total: number
+    total: number,
   ) => {
     const scaledMargin = margin * 0.6;
     const scaledFontSize = fontSize * 0.6;
@@ -152,30 +173,50 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
 
     // Draw header
     if (headerLeft) {
-      ctx.textAlign = 'left';
-      ctx.fillText(replaceVars(headerLeft), scaledMargin, scaledMargin + scaledFontSize);
+      ctx.textAlign = "left";
+      ctx.fillText(
+        replaceVars(headerLeft),
+        scaledMargin,
+        scaledMargin + scaledFontSize,
+      );
     }
     if (headerCenter) {
-      ctx.textAlign = 'center';
-      ctx.fillText(replaceVars(headerCenter), width / 2, scaledMargin + scaledFontSize);
+      ctx.textAlign = "center";
+      ctx.fillText(
+        replaceVars(headerCenter),
+        width / 2,
+        scaledMargin + scaledFontSize,
+      );
     }
     if (headerRight) {
-      ctx.textAlign = 'right';
-      ctx.fillText(replaceVars(headerRight), width - scaledMargin, scaledMargin + scaledFontSize);
+      ctx.textAlign = "right";
+      ctx.fillText(
+        replaceVars(headerRight),
+        width - scaledMargin,
+        scaledMargin + scaledFontSize,
+      );
     }
 
     // Draw footer
     if (footerLeft) {
-      ctx.textAlign = 'left';
-      ctx.fillText(replaceVars(footerLeft), scaledMargin, height - scaledMargin);
+      ctx.textAlign = "left";
+      ctx.fillText(
+        replaceVars(footerLeft),
+        scaledMargin,
+        height - scaledMargin,
+      );
     }
     if (footerCenter) {
-      ctx.textAlign = 'center';
+      ctx.textAlign = "center";
       ctx.fillText(replaceVars(footerCenter), width / 2, height - scaledMargin);
     }
     if (footerRight) {
-      ctx.textAlign = 'right';
-      ctx.fillText(replaceVars(footerRight), width - scaledMargin, height - scaledMargin);
+      ctx.textAlign = "right";
+      ctx.fillText(
+        replaceVars(footerRight),
+        width - scaledMargin,
+        height - scaledMargin,
+      );
     }
   };
 
@@ -190,22 +231,40 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
       };
       loadAndRender();
     }
-  }, [file, headerLeft, headerCenter, headerRight, footerLeft, footerCenter, footerRight, fontSize, fontColor, margin, skipFirstPage, pageRange, currentPreviewPage, totalPages]);
+  }, [
+    file,
+    headerLeft,
+    headerCenter,
+    headerRight,
+    footerLeft,
+    footerCenter,
+    footerRight,
+    fontSize,
+    fontColor,
+    margin,
+    skipFirstPage,
+    pageRange,
+    currentPreviewPage,
+    totalPages,
+  ]);
 
-  const handleFilesSelected = useCallback((files: File[]) => {
-    if (files.length > 0) {
-      setFile(files[0]);
-      setError(null);
-      setResult(null);
-      loadPdfPreview(files[0]);
-    }
-  }, [loadPdfPreview]);
+  const handleFilesSelected = useCallback(
+    (files: File[]) => {
+      if (files.length > 0) {
+        setFile(files[0]);
+        setError(null);
+        setResult(null);
+        loadPdfPreview(files[0]);
+      }
+    },
+    [loadPdfPreview],
+  );
 
   const handleClearFile = useCallback(() => {
     setFile(null);
     setResult(null);
     setError(null);
-    setStatus('idle');
+    setStatus("idle");
     setTotalPages(0);
     setCurrentPreviewPage(1);
   }, []);
@@ -213,7 +272,7 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
   const handleProcess = useCallback(async () => {
     if (!file) return;
     cancelledRef.current = false;
-    setStatus('processing');
+    setStatus("processing");
     setProgress(0);
     setError(null);
     setResult(null);
@@ -226,28 +285,45 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
         fontColor,
         margin,
         skipFirstPage,
-        pageRange: pageRange === 'all' ? undefined : pageRange,
+        pageRange: pageRange === "all" ? undefined : pageRange,
       };
 
-      const output: ProcessOutput = await addHeaderFooter(file, options, (prog, message) => {
-        if (!cancelledRef.current) {
-          setProgress(prog);
-          setProgressMessage(message || '');
-        }
-      });
+      const output: ProcessOutput = await addHeaderFooter(
+        file,
+        options,
+        (prog, message) => {
+          if (!cancelledRef.current) {
+            setProgress(prog);
+            setProgressMessage(message || "");
+          }
+        },
+      );
 
       if (output.success && output.result) {
         setResult(output.result as Blob);
-        setStatus('complete');
+        setStatus("complete");
       } else {
-        setError(output.error?.message || 'Failed to add header/footer.');
-        setStatus('error');
+        setError(output.error?.message || "Failed to add header/footer.");
+        setStatus("error");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
-      setStatus('error');
+      setError(err instanceof Error ? err.message : "Error");
+      setStatus("error");
     }
-  }, [file, headerLeft, headerCenter, headerRight, footerLeft, footerCenter, footerRight, fontSize, fontColor, margin, skipFirstPage, pageRange]);
+  }, [
+    file,
+    headerLeft,
+    headerCenter,
+    headerRight,
+    footerLeft,
+    footerCenter,
+    footerRight,
+    fontSize,
+    fontColor,
+    margin,
+    skipFirstPage,
+    pageRange,
+  ]);
 
   const formatSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
@@ -255,28 +331,37 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const isProcessing = status === 'processing';
-  const hasContent = headerLeft || headerCenter || headerRight || footerLeft || footerCenter || footerRight;
+  const isProcessing = status === "processing";
+  const hasContent =
+    headerLeft ||
+    headerCenter ||
+    headerRight ||
+    footerLeft ||
+    footerCenter ||
+    footerRight;
 
   // Quick insert buttons
   const quickInserts = [
-    { label: '{page}', desc: 'Page number' },
-    { label: '{total}', desc: 'Total pages' },
-    { label: '{date}', desc: 'Current date' },
+    { label: "{page}", desc: "Page number" },
+    { label: "{total}", desc: "Total pages" },
+    { label: "{date}", desc: "Current date" },
   ];
 
   return (
     <div className={`space-y-6 ${className}`.trim()}>
       {!file && (
         <FileUploader
-          accept={['application/pdf', '.pdf']}
+          accept={["application/pdf", ".pdf"]}
           multiple={false}
           maxFiles={1}
           onFilesSelected={handleFilesSelected}
           onError={setError}
           disabled={isProcessing}
-          label={tTools('headerFooter.uploadLabel') || 'Upload PDF File'}
-          description={tTools('headerFooter.uploadDescription') || 'Drag and drop a PDF file here.'}
+          label={tTools("headerFooter.uploadLabel") || "Upload PDF File"}
+          description={
+            tTools("headerFooter.uploadDescription") ||
+            "Drag and drop a PDF file here."
+          }
         />
       )}
 
@@ -293,7 +378,11 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
             <Card variant="outlined">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <svg className="w-10 h-10 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    className="w-10 h-10 text-red-500"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
                     <path d="M14 2v6h6" fill="white" />
                   </svg>
@@ -304,15 +393,20 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
                     </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleClearFile} disabled={isProcessing}>
-                  {t('buttons.remove') || 'Remove'}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFile}
+                  disabled={isProcessing}
+                >
+                  {t("buttons.remove") || "Remove"}
                 </Button>
               </div>
             </Card>
 
             <Card variant="outlined" size="lg">
               <h3 className="text-lg font-medium mb-4">
-                {tTools('headerFooter.headerTitle') || 'Header'}
+                {tTools("headerFooter.headerTitle") || "Header"}
               </h3>
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div>
@@ -351,7 +445,7 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
               </div>
 
               <h3 className="text-lg font-medium mb-4">
-                {tTools('headerFooter.footerTitle') || 'Footer'}
+                {tTools("headerFooter.footerTitle") || "Footer"}
               </h3>
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div>
@@ -391,7 +485,9 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
 
               {/* Quick Insert Buttons */}
               <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">Quick Insert</label>
+                <label className="block text-sm font-medium mb-2">
+                  Quick Insert
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {quickInserts.map((item) => (
                     <button
@@ -404,12 +500,14 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Click to copy, then paste into any field</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Click to copy, then paste into any field
+                </p>
               </div>
 
               {/* Style Options */}
               <h3 className="text-lg font-medium mb-4">
-                {tTools('headerFooter.styleTitle') || 'Style'}
+                {tTools("headerFooter.styleTitle") || "Style"}
               </h3>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
@@ -417,7 +515,9 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
                   <input
                     type="number"
                     value={fontSize}
-                    onChange={(e) => setFontSize(parseInt(e.target.value) || 10)}
+                    onChange={(e) =>
+                      setFontSize(parseInt(e.target.value) || 10)
+                    }
                     min={6}
                     max={24}
                     className="w-full px-3 py-2 border rounded-[var(--radius-md)]"
@@ -450,7 +550,9 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
 
               {/* Page Range */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Page Range</label>
+                <label className="block text-sm font-medium mb-1">
+                  Page Range
+                </label>
                 <input
                   type="text"
                   value={pageRange}
@@ -460,7 +562,8 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
                   disabled={isProcessing}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Use "all" for all pages, or specify ranges like "1-5, 8, 10-12"
+                  Use &quot;all&quot; for all pages, or specify ranges like
+                  &quot;1-5, 8, 10-12&quot;
                 </p>
               </div>
 
@@ -483,13 +586,15 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
             <Card variant="outlined" size="lg">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium">
-                  {tTools('headerFooter.preview') || 'Preview'}
+                  {tTools("headerFooter.preview") || "Preview"}
                 </h3>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setCurrentPreviewPage(p => Math.max(1, p - 1))}
+                    onClick={() =>
+                      setCurrentPreviewPage((p) => Math.max(1, p - 1))
+                    }
                     disabled={currentPreviewPage <= 1}
                   >
                     ←
@@ -500,7 +605,9 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setCurrentPreviewPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() =>
+                      setCurrentPreviewPage((p) => Math.min(totalPages, p + 1))
+                    }
                     disabled={currentPreviewPage >= totalPages}
                   >
                     →
@@ -512,23 +619,44 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
                 <canvas
                   ref={previewCanvasRef}
                   className="shadow-lg bg-white max-w-full h-auto"
-                  style={{ maxHeight: '500px' }}
+                  style={{ maxHeight: "500px" }}
                 />
               </div>
 
               {/* Page status indicator */}
               <div className="mt-4 text-center">
-                {isPageInRange(currentPreviewPage) && !(skipFirstPage && currentPreviewPage === 1) ? (
+                {isPageInRange(currentPreviewPage) &&
+                !(skipFirstPage && currentPreviewPage === 1) ? (
                   <span className="inline-flex items-center gap-1 text-sm text-green-600">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                     Header/Footer will be added to this page
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-sm text-gray-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                     This page will be skipped
                   </span>
@@ -537,7 +665,8 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
 
               {!hasContent && (
                 <p className="text-sm text-center text-gray-500 mt-4">
-                  {tTools('headerFooter.previewHint') || 'Enter header or footer text to see preview'}
+                  {tTools("headerFooter.previewHint") ||
+                    "Enter header or footer text to see preview"}
                 </p>
               )}
             </Card>
@@ -550,7 +679,10 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
           progress={progress}
           status={status}
           message={progressMessage}
-          onCancel={() => { cancelledRef.current = true; setStatus('idle'); }}
+          onCancel={() => {
+            cancelledRef.current = true;
+            setStatus("idle");
+          }}
           showPercentage
         />
       )}
@@ -564,12 +696,14 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
             disabled={!file || !hasContent || isProcessing}
             loading={isProcessing}
           >
-            {isProcessing ? 'Processing...' : (tTools('headerFooter.addButton') || 'Add Header & Footer')}
+            {isProcessing
+              ? "Processing..."
+              : tTools("headerFooter.addButton") || "Add Header & Footer"}
           </Button>
           {result && (
             <DownloadButton
               file={result}
-              filename={file.name.replace('.pdf', '_headerfooter.pdf')}
+              filename={file.name.replace(".pdf", "_headerfooter.pdf")}
               variant="secondary"
               size="lg"
               showFileSize
@@ -578,10 +712,11 @@ export function HeaderFooterTool({ className = '' }: HeaderFooterToolProps) {
         </div>
       )}
 
-      {status === 'complete' && result && (
+      {status === "complete" && result && (
         <div className="p-4 rounded-[var(--radius-md)] bg-green-50 border border-green-200 text-green-700">
           <p className="text-sm font-medium">
-            {tTools('headerFooter.successMessage') || 'Header & footer added successfully!'}
+            {tTools("headerFooter.successMessage") ||
+              "Header & footer added successfully!"}
           </p>
         </div>
       )}

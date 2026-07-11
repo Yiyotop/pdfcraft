@@ -951,7 +951,7 @@
       "general": {
         "whatIs": {
           "question": "What is PDFCraft?",
-          "answer": "PDFCraft is a free, privacy-focused PDF toolkit that runs entirely in your browser. It offers 80+ professional tools for editing, converting, merging, splitting, and securing PDF files without uploading them to any server."
+          "answer": "PDFCraft is a free, privacy-focused PDF toolkit that runs entirely in your browser. It offers a broad range of professional tools for editing, converting, merging, splitting, and securing PDF files without uploading them to any server."
         },
         "isFree": {
           "question": "Is PDFCraft really free?",
@@ -1635,6 +1635,8 @@
       "successMessage": "PDF signed successfully! The signature can be verified in any PDF reader.",
       "errorFetch": "Failed to fetch certificate chain. Check your internet connection and try again.",
       "errorParse": "Failed to parse certificate",
+      "errorIncorrectPassword": "Incorrect password.",
+      "errorCertExpired": "Certificate is expired or not yet valid.",
       "errorPEM": "Failed to read PEM file.",
       "errorType": "Please select a .pfx, .p12, or .pem file.",
       "errorImgType": "Please select a PNG or JPEG image."

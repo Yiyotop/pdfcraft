@@ -1,6 +1,6 @@
 # PDFCraft Chrome Extension
 
-A simple Chrome extension for quick access to PDFCraft's 72+ PDF tools.
+A simple Chrome extension for quick access to PDFCraft's PDF tools.
 
 ## Features
 
@@ -28,6 +28,7 @@ A simple Chrome extension for quick access to PDFCraft's 72+ PDF tools.
 ## Tools Included
 
 The popup provides quick access to:
+
 - Merge PDF
 - Split PDF
 - Compress PDF
@@ -42,6 +43,7 @@ And 64+ more tools via the "Open PDFCraft" button!
 ## Privacy
 
 This extension:
+
 - ✅ Does NOT collect any data
 - ✅ Does NOT track browsing activity
 - ✅ Only opens PDFCraft website when you click
@@ -53,4 +55,4 @@ This extension:
 
 ## License
 
-MIT License - see the main project for details.
+AGPL-3.0 License - see the main project [LICENSE](../LICENSE) for details.

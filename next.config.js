@@ -1,22 +1,25 @@
-import createNextIntlPlugin from 'next-intl/plugin';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import createNextIntlPlugin from "next-intl/plugin";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Enable static export for deployment flexibility
-  output: 'export',
-  
+  output: "export",
+
+  // Allow LAN/IP access during dev without cross-origin warnings
+  allowedDevOrigins: ["http://192.168.1.157:3000", "http://localhost:3000"],
+
   // Support deployment under a subpath (e.g., /pdfcraft/)
   // Use BASE_PATH or NEXT_PUBLIC_BASE_PATH environment variable
-  basePath: process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || '',
-  
-  assetPrefix: process.env.TAURI_ENV ? '/' : undefined,
+  basePath: process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "",
+
+  assetPrefix: process.env.TAURI_ENV ? "/" : undefined,
 
   // Webpack configuration for WASM modules
   webpack: (config, { isServer, webpack }) => {
@@ -30,31 +33,31 @@ const nextConfig = {
         module: false,
         url: false,
         worker_threads: false,
-        canvas: false,  // Required for pdfjs-dist-legacy
+        canvas: false, // Required for pdfjs-dist-legacy
       };
     } else {
       // Mark canvas as external for server-side builds
       config.externals = config.externals || [];
       config.externals.push({
-        canvas: 'commonjs canvas',
+        canvas: "commonjs canvas",
       });
     }
 
     // Also add module and canvas to alias for some packages that use it
     config.resolve.alias = {
       ...config.resolve.alias,
-      'module': false,
+      module: false,
     };
 
     // Ignore problematic modules that are not needed in browser
     config.plugins.push(
       new webpack.IgnorePlugin({
-        resourceRegExp: /^module$/
+        resourceRegExp: /^module$/,
       }),
       new webpack.IgnorePlugin({
         resourceRegExp: /^canvas$/,
-        contextRegExp: /pdfjs-dist-legacy/
-      })
+        contextRegExp: /pdfjs-dist-legacy/,
+      }),
     );
 
     // Enable WebAssembly
@@ -71,7 +74,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
     // Define allowed image formats
-    formats: ['image/avif', 'image/webp'],
+    formats: ["image/avif", "image/webp"],
     // Define device sizes for responsive images
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     // Define image sizes for srcset
@@ -82,7 +85,7 @@ const nextConfig = {
 
   turbopack: {
     resolveAlias: {
-      canvas: './src/lib/mocks/canvas.js',
+      canvas: "./src/lib/mocks/canvas.js",
     },
   },
 
@@ -107,9 +110,12 @@ const nextConfig = {
   // Compiler options for performance
   compiler: {
     // Remove console.log in production
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn'],
-    } : false,
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? {
+            exclude: ["error", "warn"],
+          }
+        : false,
   },
 
   // Headers configuration for caching
@@ -120,149 +126,165 @@ const nextConfig = {
       {
         // LibreOffice WASM .wasm.bin.gz — serve as application/wasm with gzip Content-Encoding
         // Same approach as BentoPDF's nginx config so browser decompresses transparently
-        source: '/libreoffice-wasm/soffice.wasm.bin.gz',
+        source: "/libreoffice-wasm/soffice.wasm.bin.gz",
         headers: [
-          { key: 'Content-Type', value: 'application/wasm' },
-          { key: 'Content-Encoding', value: 'gzip' },
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          { key: "Content-Type", value: "application/wasm" },
+          { key: "Content-Encoding", value: "gzip" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],
       },
       {
         // LibreOffice WASM .data.bin.gz — serve as application/octet-stream with gzip Content-Encoding
-        source: '/libreoffice-wasm/soffice.data.bin.gz',
+        source: "/libreoffice-wasm/soffice.data.bin.gz",
         headers: [
-          { key: 'Content-Type', value: 'application/octet-stream' },
-          { key: 'Content-Encoding', value: 'gzip' },
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          { key: "Content-Type", value: "application/octet-stream" },
+          { key: "Content-Encoding", value: "gzip" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],
       },
       {
         // LibreOffice WASM .wasm.bin (decompressed) — serve as application/wasm
-        source: '/libreoffice-wasm/soffice.wasm.bin',
+        source: "/libreoffice-wasm/soffice.wasm.bin",
         headers: [
-          { key: 'Content-Type', value: 'application/wasm' },
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          { key: "Content-Type", value: "application/wasm" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],
       },
       {
         // LibreOffice WASM .data.bin (decompressed) — serve as application/octet-stream
-        source: '/libreoffice-wasm/soffice.data.bin',
+        source: "/libreoffice-wasm/soffice.data.bin",
         headers: [
-          { key: 'Content-Type', value: 'application/octet-stream' },
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          { key: "Content-Type", value: "application/octet-stream" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],
       },
       {
         // LibreOffice WASM Worker - needs COEP to spawn workers with SharedArrayBuffer access
-        source: '/libreoffice-wasm/browser.worker.global.js',
+        source: "/libreoffice-wasm/browser.worker.global.js",
         headers: [
-          { key: 'Content-Type', value: 'application/javascript' },
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          { key: "Content-Type", value: "application/javascript" },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],
       },
       {
         // Static assets - long cache
-        source: '/:path*.(ico|jpg|jpeg|png|gif|svg|webp|avif|woff|woff2|ttf|eot)',
+        source:
+          "/:path*.(ico|jpg|jpeg|png|gif|svg|webp|avif|woff|woff2|ttf|eot)",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
           {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
           },
           {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp",
           },
           {
-            key: 'Cross-Origin-Resource-Policy',
-            value: 'cross-origin',
+            key: "Cross-Origin-Resource-Policy",
+            value: "cross-origin",
           },
         ],
       },
       {
         // JavaScript and CSS - cache with revalidation
-        source: '/:path*.(js|css)',
+        source: "/:path*.(js|css)",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },
       {
         // MJS files (ES modules) - correct MIME for module scripts
-        source: '/:path*.mjs',
+        source: "/:path*.mjs",
         headers: [
           {
-            key: 'Content-Type',
-            value: 'application/javascript; charset=utf-8',
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
           },
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },
       {
         // HTML pages - short cache with revalidation
-        source: '/:path*',
+        source: "/:path*",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=0, must-revalidate',
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
           },
         ],
       },
       {
         // Security headers for all routes
-        source: '/:path*',
+        source: "/:path*",
         headers: [
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
           {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
           },
           {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
           },
           {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
           },
           // Required for SharedArrayBuffer (LibreOffice WASM)
           {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
           },
           {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp",
           },
           {
-            key: 'Cross-Origin-Resource-Policy',
-            value: 'cross-origin',
+            key: "Cross-Origin-Resource-Policy",
+            value: "cross-origin",
           },
         ],
       },

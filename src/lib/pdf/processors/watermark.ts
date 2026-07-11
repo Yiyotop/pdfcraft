@@ -1,28 +1,37 @@
 /**
  * PDF Watermark Processor
  * Requirements: 5.1
- * 
+ *
  * Supports text and image watermarks with CJK character support via fontkit.
  */
 
-import type { ProcessInput, ProcessOutput, ProgressCallback } from '@/types/pdf';
-import { PDFErrorCode } from '@/types/pdf';
-import { BasePDFProcessor } from '../processor';
-import { loadPdfLib } from '../loader';
-import type { PDFPage, PDFFont, PDFImage } from 'pdf-lib';
-
+import type {
+  ProcessInput,
+  ProcessOutput,
+  ProgressCallback,
+} from "@/types/pdf";
+import { PDFErrorCode } from "@/types/pdf";
+import { BasePDFProcessor } from "../processor";
+import { loadPdfLib } from "../loader";
+import type { PDFPage, PDFFont, PDFImage } from "pdf-lib";
 
 export interface WatermarkOptions {
-  type: 'text' | 'image';
+  type: "text" | "image";
   text?: string;
   imageData?: ArrayBuffer;
-  imageType?: 'png' | 'jpg';
-  position?: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'diagonal';
+  imageType?: "png" | "jpg";
+  position?:
+    | "center"
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right"
+    | "diagonal";
   opacity?: number;
   rotation?: number;
   fontSize?: number;
   color?: { r: number; g: number; b: number };
-  pages?: number[] | 'all' | 'odd' | 'even';
+  pages?: number[] | "all" | "odd" | "even";
   /** If true, tile the watermark across the entire page */
   repeat?: boolean;
   /** If true, offset alternating rows for a staggered pattern */
@@ -34,13 +43,14 @@ export interface WatermarkOptions {
 }
 
 // Noto fonts for CJK support
-const CJK_FONT_URL = 'https://raw.githack.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf';
+const CJK_FONT_URL =
+  "https://raw.githack.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf";
 
 // Font cache
 const fontCache: Map<string, ArrayBuffer> = new Map();
-const DB_NAME = 'pdfcraft-fonts';
+const DB_NAME = "pdfcraft-fonts";
 const DB_VERSION = 1;
-const STORE_NAME = 'fonts';
+const STORE_NAME = "fonts";
 
 async function openFontDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -56,11 +66,13 @@ async function openFontDB(): Promise<IDBDatabase> {
   });
 }
 
-async function getCachedFontFromDB(fontId: string): Promise<ArrayBuffer | null> {
+async function getCachedFontFromDB(
+  fontId: string,
+): Promise<ArrayBuffer | null> {
   try {
     const db = await openFontDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const transaction = db.transaction(STORE_NAME, "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get(fontId);
       request.onsuccess = () => resolve(request.result || null);
@@ -71,11 +83,14 @@ async function getCachedFontFromDB(fontId: string): Promise<ArrayBuffer | null> 
   }
 }
 
-async function saveFontToDB(fontId: string, fontBuffer: ArrayBuffer): Promise<void> {
+async function saveFontToDB(
+  fontId: string,
+  fontBuffer: ArrayBuffer,
+): Promise<void> {
   try {
     const db = await openFontDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const transaction = db.transaction(STORE_NAME, "readwrite");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.put(fontBuffer, fontId);
       request.onsuccess = () => resolve();
@@ -87,7 +102,7 @@ async function saveFontToDB(fontId: string, fontBuffer: ArrayBuffer): Promise<vo
 }
 
 async function loadCJKFont(): Promise<ArrayBuffer> {
-  const fontId = 'noto-sans-sc';
+  const fontId = "noto-sans-sc";
 
   // Check memory cache first
   if (fontCache.has(fontId)) {
@@ -120,27 +135,29 @@ async function loadCJKFont(): Promise<ArrayBuffer> {
  * Check if text contains non-ASCII characters (CJK, etc.)
  */
 function containsNonAscii(text: string): boolean {
-  // eslint-disable-next-line no-control-regex
   return /[^\x00-\x7F]/.test(text);
 }
 
 export class WatermarkProcessor extends BasePDFProcessor {
-  async process(input: ProcessInput, onProgress?: ProgressCallback): Promise<ProcessOutput> {
+  async process(
+    input: ProcessInput,
+    onProgress?: ProgressCallback,
+  ): Promise<ProcessOutput> {
     this.reset();
     this.onProgress = onProgress;
 
     const { files, options } = input;
     const inputOptions = options as Partial<WatermarkOptions>;
     const wmOptions: WatermarkOptions = {
-      type: inputOptions.type ?? 'text',
+      type: inputOptions.type ?? "text",
       text: inputOptions.text,
       imageData: inputOptions.imageData,
-      position: inputOptions.position ?? 'center',
+      position: inputOptions.position ?? "center",
       opacity: inputOptions.opacity ?? 0.3,
       rotation: inputOptions.rotation ?? -45,
       fontSize: inputOptions.fontSize ?? 48,
       color: inputOptions.color ?? { r: 0.5, g: 0.5, b: 0.5 },
-      pages: inputOptions.pages ?? 'all',
+      pages: inputOptions.pages ?? "all",
       repeat: inputOptions.repeat ?? false,
       stagger: inputOptions.stagger ?? true,
       repeatSpacingX: inputOptions.repeatSpacingX ?? 200,
@@ -148,30 +165,38 @@ export class WatermarkProcessor extends BasePDFProcessor {
     };
 
     if (files.length !== 1) {
-      return this.createErrorOutput(PDFErrorCode.INVALID_OPTIONS, 'Exactly 1 PDF file is required.');
+      return this.createErrorOutput(
+        PDFErrorCode.INVALID_OPTIONS,
+        "Exactly 1 PDF file is required.",
+      );
     }
 
     try {
-      this.updateProgress(10, 'Loading PDF library...');
+      this.updateProgress(10, "Loading PDF library...");
       const pdfLib = await loadPdfLib();
 
-      this.updateProgress(20, 'Loading PDF...');
+      this.updateProgress(20, "Loading PDF...");
       const file = files[0];
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+      const pdf = await pdfLib.PDFDocument.load(arrayBuffer, {
+        ignoreEncryption: true,
+      });
 
       // Check if we need CJK font support
-      const needsCJKFont = wmOptions.type === 'text' && wmOptions.text && containsNonAscii(wmOptions.text);
+      const needsCJKFont =
+        wmOptions.type === "text" &&
+        wmOptions.text &&
+        containsNonAscii(wmOptions.text);
 
       let font: Awaited<ReturnType<typeof pdf.embedFont>>;
 
       if (needsCJKFont) {
-        this.updateProgress(25, 'Loading CJK font...');
-        const fontkit = await import('@pdf-lib/fontkit');
+        this.updateProgress(25, "Loading CJK font...");
+        const fontkit = await import("@pdf-lib/fontkit");
         pdf.registerFontkit(fontkit.default || fontkit);
 
         const fontBytes = await loadCJKFont();
-        this.updateProgress(28, 'Embedding font...');
+        this.updateProgress(28, "Embedding font...");
         font = await pdf.embedFont(fontBytes, { subset: false });
       } else {
         font = await pdf.embedFont(pdfLib.StandardFonts.HelveticaBold);
@@ -179,68 +204,100 @@ export class WatermarkProcessor extends BasePDFProcessor {
 
       const totalPages = pdf.getPageCount();
 
-      this.updateProgress(30, 'Adding watermark...');
+      this.updateProgress(30, "Adding watermark...");
 
       const pagesToProcess = getPageIndices(wmOptions.pages, totalPages);
 
       // Pre-embed image if using image watermark (do this once, outside the loop)
       let embeddedImage: Awaited<ReturnType<typeof pdf.embedPng>> | null = null;
-      if (wmOptions.type === 'image' && wmOptions.imageData) {
+      if (wmOptions.type === "image" && wmOptions.imageData) {
         try {
-          if (wmOptions.imageType === 'jpg') {
+          if (wmOptions.imageType === "jpg") {
             embeddedImage = await pdf.embedJpg(wmOptions.imageData);
           } else {
             embeddedImage = await pdf.embedPng(wmOptions.imageData);
           }
         } catch (embedError) {
-          const errorMessage = embedError instanceof Error ? embedError.message : 'Unknown error';
-          return this.createErrorOutput(PDFErrorCode.PROCESSING_FAILED, `Failed to embed image: ${errorMessage}`);
+          const errorMessage =
+            embedError instanceof Error ? embedError.message : "Unknown error";
+          return this.createErrorOutput(
+            PDFErrorCode.PROCESSING_FAILED,
+            `Failed to embed image: ${errorMessage}`,
+          );
         }
       }
 
       for (let i = 0; i < pagesToProcess.length; i++) {
         if (this.checkCancelled()) {
-          return this.createErrorOutput(PDFErrorCode.PROCESSING_CANCELLED, 'Processing was cancelled.');
+          return this.createErrorOutput(
+            PDFErrorCode.PROCESSING_CANCELLED,
+            "Processing was cancelled.",
+          );
         }
 
         const pageIndex = pagesToProcess[i];
         const page = pdf.getPage(pageIndex);
         const { width, height } = page.getSize();
 
-        if (wmOptions.type === 'text' && wmOptions.text) {
+        if (wmOptions.type === "text" && wmOptions.text) {
           const text = wmOptions.text;
           const fontSize = wmOptions.fontSize || 48;
           const textWidth = font.widthOfTextAtSize(text, fontSize);
           const textHeight = font.heightAtSize(fontSize);
-          const rotation = wmOptions.position === 'diagonal' ? -45 : (wmOptions.rotation || 0);
+          const rotation =
+            wmOptions.position === "diagonal" ? -45 : wmOptions.rotation || 0;
 
           if (wmOptions.repeat) {
             // Tile the text watermark across the entire page
-            tileTextWatermark(page, pdfLib, text, font, fontSize, rotation, wmOptions, width, height, textWidth, textHeight);
+            tileTextWatermark(
+              page,
+              pdfLib,
+              text,
+              font,
+              fontSize,
+              rotation,
+              wmOptions,
+              width,
+              height,
+              textWidth,
+              textHeight,
+            );
           } else {
-            let x = 0, y = 0;
+            let x = 0,
+              y = 0;
 
             switch (wmOptions.position) {
-              case 'top-left':
-                x = 50; y = height - 50;
+              case "top-left":
+                x = 50;
+                y = height - 50;
                 break;
-              case 'top-right':
-                x = width - textWidth - 50; y = height - 50;
+              case "top-right":
+                x = width - textWidth - 50;
+                y = height - 50;
                 break;
-              case 'bottom-left':
-                x = 50; y = 50;
+              case "bottom-left":
+                x = 50;
+                y = 50;
                 break;
-              case 'bottom-right':
-                x = width - textWidth - 50; y = 50;
+              case "bottom-right":
+                x = width - textWidth - 50;
+                y = 50;
                 break;
-              case 'center':
-                const position = computeTextWatermarkPosition(width, height, textWidth, textHeight, rotation);
+              case "center":
+                const position = computeTextWatermarkPosition(
+                  width,
+                  height,
+                  textWidth,
+                  textHeight,
+                  rotation,
+                );
                 x = position.x;
                 y = position.y;
                 break;
-              case 'diagonal':
+              case "diagonal":
               default:
-                x = width / 2; y = height / 2;
+                x = width / 2;
+                y = height / 2;
             }
 
             page.drawText(text, {
@@ -248,19 +305,32 @@ export class WatermarkProcessor extends BasePDFProcessor {
               y,
               size: fontSize,
               font,
-              color: pdfLib.rgb(wmOptions.color?.r || 0.5, wmOptions.color?.g || 0.5, wmOptions.color?.b || 0.5),
+              color: pdfLib.rgb(
+                wmOptions.color?.r || 0.5,
+                wmOptions.color?.g || 0.5,
+                wmOptions.color?.b || 0.5,
+              ),
               opacity: wmOptions.opacity || 0.3,
               rotate: pdfLib.degrees(rotation),
             });
           }
-        } else if (wmOptions.type === 'image' && embeddedImage) {
+        } else if (wmOptions.type === "image" && embeddedImage) {
           const scale = 0.5;
           const imgWidth = embeddedImage.width * scale;
           const imgHeight = embeddedImage.height * scale;
 
           if (wmOptions.repeat) {
             // Tile the image watermark across the entire page
-            tileImageWatermark(page, pdfLib, embeddedImage, imgWidth, imgHeight, wmOptions, width, height);
+            tileImageWatermark(
+              page,
+              pdfLib,
+              embeddedImage,
+              imgWidth,
+              imgHeight,
+              wmOptions,
+              width,
+              height,
+            );
           } else {
             const x = (width - imgWidth) / 2;
             const y = (height - imgHeight) / 2;
@@ -276,35 +346,54 @@ export class WatermarkProcessor extends BasePDFProcessor {
           }
         }
 
-        this.updateProgress(30 + (60 * (i + 1) / pagesToProcess.length), `Processing page ${pageIndex + 1}...`);
+        this.updateProgress(
+          30 + (60 * (i + 1)) / pagesToProcess.length,
+          `Processing page ${pageIndex + 1}...`,
+        );
       }
 
-      this.updateProgress(95, 'Saving PDF...');
+      this.updateProgress(95, "Saving PDF...");
       const pdfBytes = await pdf.save({ useObjectStreams: true });
-      const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+      const blob = new Blob([new Uint8Array(pdfBytes)], {
+        type: "application/pdf",
+      });
 
-      this.updateProgress(100, 'Complete!');
-      return this.createSuccessOutput(blob, file.name.replace('.pdf', '_watermarked.pdf'), { pageCount: totalPages });
-
+      this.updateProgress(100, "Complete!");
+      return this.createSuccessOutput(
+        blob,
+        file.name.replace(".pdf", "_watermarked.pdf"),
+        { pageCount: totalPages },
+      );
     } catch (error) {
-      return this.createErrorOutput(PDFErrorCode.PROCESSING_FAILED, 'Failed to add watermark.', error instanceof Error ? error.message : 'Unknown error');
+      return this.createErrorOutput(
+        PDFErrorCode.PROCESSING_FAILED,
+        "Failed to add watermark.",
+        error instanceof Error ? error.message : "Unknown error",
+      );
     }
   }
 
   protected getAcceptedTypes(): string[] {
-    return ['application/pdf'];
+    return ["application/pdf"];
   }
 }
 
-function getPageIndices(pages: WatermarkOptions['pages'], totalPages: number): number[] {
+function getPageIndices(
+  pages: WatermarkOptions["pages"],
+  totalPages: number,
+): number[] {
   if (Array.isArray(pages)) {
-    return pages.map(p => p - 1).filter(p => p >= 0 && p < totalPages);
+    return pages.map((p) => p - 1).filter((p) => p >= 0 && p < totalPages);
   }
   switch (pages) {
-    case 'odd':
-      return Array.from({ length: totalPages }, (_, i) => i).filter(i => i % 2 === 0);
-    case 'even':
-      return Array.from({ length: totalPages }, (_, i) => i).filter(i => i % 2 === 1);
+    case "odd":
+      return Array.from({ length: totalPages }, (_, i) => i).filter(
+        (i) => i % 2 === 0,
+      );
+    case "even":
+      return Array.from({ length: totalPages }, (_, i) => i).filter(
+        (i) => i % 2 === 1,
+      );
     default:
       return Array.from({ length: totalPages }, (_, i) => i);
   }
@@ -315,9 +404,8 @@ function computeTextWatermarkPosition(
   pageHeight: number,
   textWidth: number,
   textHeight: number,
-  rotation: number
+  rotation: number,
 ): { x: number; y: number } {
-
   // Calculate the center coordinates of the PDF page
   const centerX = pageWidth / 2;
   const centerY = pageHeight / 2;
@@ -339,8 +427,12 @@ function computeTextWatermarkPosition(
   // Get rotation direction sign: 1=counterclockwise, -1=clockwise, 0=no rotation
   const rotationSign = Math.sign(rotation);
   // Calculate final rotated origin coordinates for text
-  let rotatedOriginX = baseX + textWidthHalf * (1 - cosRad) + rotationSign * baselineOffset;
-  let rotatedOriginY = baseY - rotationSign * (textWidthHalf * sinRad) + baselineOffset * Math.abs(rotationSign);
+  let rotatedOriginX =
+    baseX + textWidthHalf * (1 - cosRad) + rotationSign * baselineOffset;
+  let rotatedOriginY =
+    baseY -
+    rotationSign * (textWidthHalf * sinRad) +
+    baselineOffset * Math.abs(rotationSign);
 
   return {
     x: rotatedOriginX,
@@ -362,7 +454,7 @@ function tileTextWatermark(
   pageWidth: number,
   pageHeight: number,
   textWidth: number,
-  textHeight: number
+  textHeight: number,
 ): void {
   const spacingX = wmOptions.repeatSpacingX ?? 200;
   const spacingY = wmOptions.repeatSpacingY ?? 150;
@@ -382,14 +474,18 @@ function tileTextWatermark(
 
   let rowIndex = 0;
   for (let y = startY; y < endY; y += stepY) {
-    const offsetX = (stagger && rowIndex % 2 === 1) ? stepX / 2 : 0;
+    const offsetX = stagger && rowIndex % 2 === 1 ? stepX / 2 : 0;
     for (let x = startX - offsetX; x < endX; x += stepX) {
       page.drawText(text, {
         x,
         y,
         size: fontSize,
         font,
-        color: pdfLib.rgb(wmOptions.color?.r || 0.5, wmOptions.color?.g || 0.5, wmOptions.color?.b || 0.5),
+        color: pdfLib.rgb(
+          wmOptions.color?.r || 0.5,
+          wmOptions.color?.g || 0.5,
+          wmOptions.color?.b || 0.5,
+        ),
         opacity: wmOptions.opacity || 0.3,
         rotate: pdfLib.degrees(rotation),
       });
@@ -409,7 +505,7 @@ function tileImageWatermark(
   imgHeight: number,
   wmOptions: WatermarkOptions,
   pageWidth: number,
-  pageHeight: number
+  pageHeight: number,
 ): void {
   const spacingX = wmOptions.repeatSpacingX ?? 200;
   const spacingY = wmOptions.repeatSpacingY ?? 150;
@@ -425,7 +521,7 @@ function tileImageWatermark(
 
   let rowIndex = 0;
   for (let y = startY; y < endY; y += stepY) {
-    const offsetX = (stagger && rowIndex % 2 === 1) ? stepX / 2 : 0;
+    const offsetX = stagger && rowIndex % 2 === 1 ? stepX / 2 : 0;
     for (let x = startX - offsetX; x < endX; x += stepX) {
       page.drawImage(embeddedImage, {
         x,
@@ -444,7 +540,14 @@ export function createWatermarkProcessor(): WatermarkProcessor {
   return new WatermarkProcessor();
 }
 
-export async function addWatermark(file: File, options: WatermarkOptions, onProgress?: ProgressCallback): Promise<ProcessOutput> {
+export async function addWatermark(
+  file: File,
+  options: WatermarkOptions,
+  onProgress?: ProgressCallback,
+): Promise<ProcessOutput> {
   const processor = createWatermarkProcessor();
-  return processor.process({ files: [file], options: options as unknown as Record<string, unknown> }, onProgress);
+  return processor.process(
+    { files: [file], options: options as unknown as Record<string, unknown> },
+    onProgress,
+  );
 }

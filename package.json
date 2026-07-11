@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "tauri": "tauri",
-    "dev:tauri": "set TAURI_ENV=true&& tauri dev",
-    "build:tauri": "set TAURI_ENV=true&& tauri build",
+    "dev:tauri": "cross-env TAURI_ENV=true tauri dev",
+    "build:tauri": "cross-env TAURI_ENV=true tauri build",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",
@@ -61,6 +61,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.2",
+    "cross-env": "^7.0.3",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.8",
     "fake-indexeddb": "^6.2.5",

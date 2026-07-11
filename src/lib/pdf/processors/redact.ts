@@ -1,18 +1,18 @@
 /**
  * PDF Redaction Processor
  * Requirements: 5.1
- * 
+ *
  * Implements redaction functionality for permanently removing content from PDFs.
  * Redaction involves:
  * 1. Drawing black rectangles over specified areas
  * 2. Removing the underlying content (text, images) from those areas
- * 
+ *
  * Note: True redaction requires removing the actual content from the PDF,
  * not just covering it with a black box. This implementation uses pdf-lib
  * to draw opaque rectangles and flatten the PDF.
  */
 
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 /**
  * Represents a rectangular area to be redacted
@@ -58,21 +58,21 @@ export interface RedactionResult {
 
 /**
  * Apply redactions to a PDF document
- * 
+ *
  * @param file - The PDF file to redact
  * @param options - Redaction options including areas to redact
  * @returns Promise resolving to the redaction result
  */
 export async function applyRedactions(
   file: File,
-  options: RedactionOptions
+  options: RedactionOptions,
 ): Promise<RedactionResult> {
   try {
     // Validate input
     if (!file) {
       return {
         success: false,
-        error: 'No file provided',
+        error: "No file provided",
         redactedCount: 0,
       };
     }
@@ -80,7 +80,7 @@ export async function applyRedactions(
     if (!options.areas || options.areas.length === 0) {
       return {
         success: false,
-        error: 'No redaction areas specified',
+        error: "No redaction areas specified",
         redactedCount: 0,
       };
     }
@@ -139,7 +139,8 @@ export async function applyRedactions(
       }
 
       // Add replacement text if specified
-      const replacementText = area.replacementText || options.defaultReplacementText;
+      const replacementText =
+        area.replacementText || options.defaultReplacementText;
       if (replacementText) {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const fontSize = Math.min(area.height * 0.6, 12);
@@ -166,9 +167,9 @@ export async function applyRedactions(
     // Convert Uint8Array to ArrayBuffer for Blob compatibility
     const outputBuffer = pdfBytes.buffer.slice(
       pdfBytes.byteOffset,
-      pdfBytes.byteOffset + pdfBytes.byteLength
+      pdfBytes.byteOffset + pdfBytes.byteLength,
     ) as ArrayBuffer;
-    const blob = new Blob([outputBuffer], { type: 'application/pdf' });
+    const blob = new Blob([outputBuffer], { type: "application/pdf" });
 
     return {
       success: true,
@@ -176,10 +177,11 @@ export async function applyRedactions(
       redactedCount,
     };
   } catch (error) {
-    console.error('Redaction error:', error);
+    console.error("Redaction error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to apply redactions',
+      error:
+        error instanceof Error ? error.message : "Failed to apply redactions",
       redactedCount: 0,
     };
   }
@@ -187,19 +189,19 @@ export async function applyRedactions(
 
 /**
  * Validate redaction areas
- * 
+ *
  * @param areas - Array of redaction areas to validate
  * @param pageCount - Total number of pages in the PDF
  * @returns Object with validation result and any errors
  */
 export function validateRedactionAreas(
   areas: RedactionArea[],
-  pageCount: number
+  pageCount: number,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (!areas || areas.length === 0) {
-    errors.push('No redaction areas specified');
+    errors.push("No redaction areas specified");
     return { valid: false, errors };
   }
 
@@ -233,7 +235,9 @@ export function validateRedactionAreas(
   };
 }
 
-export default {
+const redactProcessor = {
   applyRedactions,
   validateRedactionAreas,
 };
+
+export default redactProcessor;

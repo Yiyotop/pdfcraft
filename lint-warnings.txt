@@ -1,0 +1,78 @@
+/home/yiyotop/pdfcraft/pdfcraft/src/app/[locale]/tools/ToolsPageClient.tsx
+  81:6  warning  React Hook useMemo has a missing dependency: 'localizedToolContent'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/layout/Header.tsx
+  109:6  warning  React Hook useCallback has a missing dependency: 'navigateToTool'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/FilePreview.tsx
+  121:6  warning  React Hook useEffect has missing dependencies: 'onPageChange' and 'previewUrl'. Either include them or remove the dependency array. If 'onPageChange' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/ai-pdf-reflower/AIPDFReflowerTool.tsx
+  85:6  warning  React Hook useCallback has a missing dependency: 'handleReflow'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/bookmark/BookmarkTool.tsx
+  108:6  warning  React Hook useCallback has a missing dependency: 'parseOutline'. Either include it or remove the dependency array            react-hooks/exhaustive-deps
+  134:6  warning  React Hook useCallback has a missing dependency: 'parseOutline'. Either include it or remove the dependency array            react-hooks/exhaustive-deps
+  518:6  warning  React Hook useCallback has a missing dependency: 'convertToBookmarkItems'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/citation-linker/CitationLinkerTool.tsx
+  110:6  warning  React Hook useCallback has a missing dependency: 'handleScanCitations'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/compress/CompressPDFTool.tsx
+  126:6   warning  React Hook useCallback has a missing dependency: 'renderPreview'. Either include it or remove the dependency array                                                                                                                                                                       react-hooks/exhaustive-deps
+  406:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  421:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/crop/CropPDFTool.tsx
+  360:6  warning  React Hook useCallback has a missing dependency: 'saveCurrentCrop'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/delete/DeletePagesTool.tsx
+  412:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/digital-sign/DigitalSignPDFTool.tsx
+  223:5  warning  React Hook useCallback has a missing dependency: 'tTool'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  325:6  warning  React Hook useCallback has a missing dependency: 'tTool'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/edit-attachments/EditAttachmentsTool.tsx
+   80:6  warning  React Hook useCallback has a missing dependency: 'tTools'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  199:6  warning  React Hook useCallback has a missing dependency: 'tTools'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/edit-pdf/EditPDFTool.tsx
+  582:6  warning  React Hook useCallback has a missing dependency: 't'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/eink-optimizer/EinkOptimizerTool.tsx
+  109:6  warning  React Hook useEffect has a missing dependency: 'handleMouseUp'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/extract-images/ExtractImagesTool.tsx
+  540:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/extract/ExtractPagesTool.tsx
+  386:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/grid-combine/GridCombineTool.tsx
+  413:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  547:61  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/header-footer/HeaderFooterTool.tsx
+   83:6  warning  React Hook useCallback has a missing dependency: 'renderPagePreview'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  234:6  warning  React Hook useEffect has a missing dependency: 'renderPagePreview'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/image-to-pdf/ImageToPDFTool.tsx
+  359:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/organize/OrganizePDFTool.tsx
+  440:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/page-labels/AddPageLabelsTool.tsx
+  84:6  warning  React Hook useCallback has a missing dependency: 't'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/page-numbers/PageNumbersTool.tsx
+   85:6  warning  React Hook useCallback has a missing dependency: 'renderPagePreview'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  272:6  warning  React Hook useEffect has a missing dependency: 'renderPagePreview'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/pdf-multi-tool/PDFMultiTool.tsx
+  667:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/pdf-to-cbz/PDFToCBZTool.tsx
+  88:6  warning  React Hook useCallback has a missing dependency: 't'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/pdf-to-image/PDFToImageTool.tsx
+  608:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/pdf-to-tiff/PDFToTIFFTool.tsx
+  73:6  warning  React Hook useCallback has a missing dependency: 't'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/remove-blank-pages/RemoveBlankPagesTool.tsx
+  170:6  warning  React Hook useCallback has a missing dependency: 'loadAndAnalyzePdf'. Either include it or remove the dependency array                                                                                                                                                                   react-hooks/exhaustive-deps
+  617:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/rotate-custom/RotateCustomTool.tsx
+  399:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/rotate/RotatePDFTool.tsx
+  976:31  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/validate-signature/ValidateSignatureTool.tsx
+  87:6  warning  React Hook useCallback has a missing dependency: 'tTool'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/tools/watermark/WatermarkTool.tsx
+  331:6  warning  React Hook React.useEffect has a missing dependency: 'handleGeneratePreview'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/workflow/WorkflowEditor.tsx
+  172:8  warning  React Hook useEffect has missing dependencies: 'edges', 'nodes', and 'pushHistory'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  197:8  warning  React Hook useEffect has missing dependencies: 'handleRedo' and 'handleUndo'. Either include them or remove the dependency array        react-hooks/exhaustive-deps
+/home/yiyotop/pdfcraft/pdfcraft/src/components/workflow/WorkflowPreview.tsx
+   44:8   warning  React Hook useEffect has a missing dependency: 'generatePreview'. Either include it or remove the dependency array                                                                                                                                                                       react-hooks/exhaustive-deps
+  312:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  324:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+✖ 45 problems (0 errors, 45 warnings)

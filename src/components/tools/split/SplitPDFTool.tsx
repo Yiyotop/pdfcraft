@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
-import { FileUploader } from '../FileUploader';
-import { ProcessingProgress, ProcessingStatus } from '../ProcessingProgress';
-import { DownloadButton } from '../DownloadButton';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { FileUploader } from "../FileUploader";
+import { ProcessingProgress, ProcessingStatus } from "../ProcessingProgress";
+import { DownloadButton } from "../DownloadButton";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import {
   splitPDF,
   parsePageRanges,
@@ -16,47 +17,97 @@ import {
   createSplitNTimes,
   createSplitByBookmarks,
   type BookmarkInfo,
-} from '@/lib/pdf';
-import { createZip } from '@/lib/zip';
-import { configurePdfjsWorker } from '@/lib/pdf/loader';
-import type { SplitOptions, PageRange, ProcessOutput } from '@/types/pdf';
+} from "@/lib/pdf";
+import { createZip } from "@/lib/zip";
+import { configurePdfjsWorker } from "@/lib/pdf/loader";
+import type { SplitOptions, PageRange, ProcessOutput } from "@/types/pdf";
 
 export interface SplitPDFToolProps {
   /** Custom class name */
   className?: string;
 }
 
-type SplitMode = 'ranges' | 'even-odd' | 'every-page' | 'visual' | 'bookmarks' | 'n-times';
+type SplitMode =
+  | "ranges"
+  | "even-odd"
+  | "every-page"
+  | "visual"
+  | "bookmarks"
+  | "n-times";
 
 interface PagePreview {
   pageNumber: number;
   thumbnail?: string;
 }
 
+async function parseOutlineToBookmarks(
+  outline: any[],
+  pdf: any,
+): Promise<BookmarkInfo[]> {
+  const result: BookmarkInfo[] = [];
+
+  for (const item of outline) {
+    let pageNumber = 1;
+
+    if (item.dest) {
+      try {
+        const dest =
+          typeof item.dest === "string"
+            ? await pdf.getDestination(item.dest)
+            : item.dest;
+        if (dest && dest[0]) {
+          const pageRef = dest[0];
+          const pageIndex = await pdf.getPageIndex(pageRef);
+          pageNumber = pageIndex + 1;
+        }
+      } catch (e) {
+        console.warn("Failed to get destination for bookmark:", item.title);
+      }
+    }
+
+    const bookmark: BookmarkInfo = {
+      title: item.title || "Untitled",
+      pageNumber,
+      children:
+        item.items && item.items.length > 0
+          ? await parseOutlineToBookmarks(item.items, pdf)
+          : undefined,
+    };
+
+    result.push(bookmark);
+  }
+
+  return result;
+}
+
 /**
  * SplitPDFTool Component
  * Requirements: 5.1, 5.2
- * 
+ *
  * Provides the UI for splitting PDF files with page range input and preview.
  */
-export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
-  const t = useTranslations('common');
-  const tTools = useTranslations('tools');
+export function SplitPDFTool({ className = "" }: SplitPDFToolProps) {
+  const t = useTranslations("common");
+  const tTools = useTranslations("tools");
 
   // State
   const [file, setFile] = useState<File | null>(null);
   const [totalPages, setTotalPages] = useState<number>(0);
-  const [status, setStatus] = useState<ProcessingStatus>('idle');
+  const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [progress, setProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState('');
-  const [results, setResults] = useState<{ blob: Blob; filename: string }[]>([]);
+  const [progressMessage, setProgressMessage] = useState("");
+  const [results, setResults] = useState<{ blob: Blob; filename: string }[]>(
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
 
   // Split options
-  const [splitMode, setSplitMode] = useState<SplitMode>('ranges');
-  const [rangeInput, setRangeInput] = useState('');
+  const [splitMode, setSplitMode] = useState<SplitMode>("ranges");
+  const [rangeInput, setRangeInput] = useState("");
   const [splitCount, setSplitCount] = useState(2); // For n-times mode
-  const [evenOddMode, setEvenOddMode] = useState<'odd' | 'even' | 'both'>('both'); // For even-odd mode
+  const [evenOddMode, setEvenOddMode] = useState<"odd" | "even" | "both">(
+    "both",
+  ); // For even-odd mode
 
   // Page previews
   const [pagePreviews, setPagePreviews] = useState<PagePreview[]>([]);
@@ -81,7 +132,7 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
     setBookmarkLabels([]);
 
     try {
-      const pdfjsLib = await import('pdfjs-dist');
+      const pdfjsLib = await import("pdfjs-dist");
       configurePdfjsWorker(pdfjsLib);
 
       const arrayBuffer = await pdfFile.arrayBuffer();
@@ -94,11 +145,14 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
       try {
         const outline = await pdf.getOutline();
         if (outline && outline.length > 0) {
-          const extractedBookmarks = await parseOutlineToBookmarks(outline, pdf);
+          const extractedBookmarks = await parseOutlineToBookmarks(
+            outline,
+            pdf,
+          );
           setPdfBookmarks(extractedBookmarks);
         }
       } catch (bookmarkErr) {
-        console.warn('Failed to extract bookmarks:', bookmarkErr);
+        console.warn("Failed to extract bookmarks:", bookmarkErr);
         // Continue without bookmarks - not a fatal error
       }
 
@@ -110,8 +164,8 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({ scale: 0.2 });
 
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
 
         if (context) {
           canvas.height = viewport.height;
@@ -124,7 +178,7 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
 
           previews.push({
             pageNumber: i,
-            thumbnail: canvas.toDataURL('image/jpeg', 0.7),
+            thumbnail: canvas.toDataURL("image/jpeg", 0.7),
           });
         }
       }
@@ -136,76 +190,36 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
 
       setPagePreviews(previews);
     } catch (err) {
-      console.error('Failed to load PDF previews:', err);
-      setError('Failed to load PDF preview. The file may be corrupted or encrypted.');
+      console.error("Failed to load PDF previews:", err);
+      setError(
+        "Failed to load PDF preview. The file may be corrupted or encrypted.",
+      );
     } finally {
       setIsLoadingPreviews(false);
     }
   }, []);
 
-  /**
-   * Parse PDF.js outline to BookmarkInfo format
-   */
-  const parseOutlineToBookmarks = async (
-    outline: any[],
-    pdf: any
-  ): Promise<BookmarkInfo[]> => {
-    const result: BookmarkInfo[] = [];
-
-    for (const item of outline) {
-      let pageNumber = 1;
-
-      // Get destination page using PDF.js API
-      if (item.dest) {
-        try {
-          const dest = typeof item.dest === 'string'
-            ? await pdf.getDestination(item.dest)
-            : item.dest;
-          if (dest && dest[0]) {
-            const pageRef = dest[0];
-            const pageIndex = await pdf.getPageIndex(pageRef);
-            pageNumber = pageIndex + 1;
-          }
-        } catch (e) {
-          console.warn('Failed to get destination for bookmark:', item.title);
-        }
-      }
-
-      const bookmark: BookmarkInfo = {
-        title: item.title || 'Untitled',
-        pageNumber,
-        children: item.items && item.items.length > 0
-          ? await parseOutlineToBookmarks(item.items, pdf)
-          : undefined,
-      };
-
-      result.push(bookmark);
-    }
-
-    return result;
-  };
+  const handleUploadError = useCallback((errorMessage: string) => {
+    setError(errorMessage);
+  }, []);
 
   /**
    * Handle file selected from uploader
    */
-  const handleFilesSelected = useCallback((files: File[]) => {
-    if (files.length > 0) {
-      const selectedFile = files[0];
-      setFile(selectedFile);
-      setError(null);
-      setResults([]);
-      setSelectedPages(new Set());
-      setRangeInput('');
-      loadPdfPreviews(selectedFile);
-    }
-  }, [loadPdfPreviews, splitMode]);
-
-  /**
-   * Handle file upload error
-   */
-  const handleUploadError = useCallback((errorMessage: string) => {
-    setError(errorMessage);
-  }, []);
+  const handleFilesSelected = useCallback(
+    (files: File[]) => {
+      if (files.length > 0) {
+        const selectedFile = files[0];
+        setFile(selectedFile);
+        setError(null);
+        setResults([]);
+        setSelectedPages(new Set());
+        setRangeInput("");
+        loadPdfPreviews(selectedFile);
+      }
+    },
+    [loadPdfPreviews],
+  );
 
   /**
    * Clear file and reset state
@@ -217,9 +231,9 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
     setSelectedPages(new Set());
     setResults([]);
     setError(null);
-    setStatus('idle');
+    setStatus("idle");
     setProgress(0);
-    setRangeInput('');
+    setRangeInput("");
     setPdfBookmarks([]);
     setBookmarkLabels([]);
     pdfDocRef.current = null;
@@ -229,7 +243,7 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
    * Toggle page selection
    */
   const handleTogglePage = useCallback((pageNumber: number) => {
-    setSelectedPages(prev => {
+    setSelectedPages((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(pageNumber)) {
         newSet.delete(pageNumber);
@@ -244,7 +258,7 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
    * Select all pages
    */
   const handleSelectAll = useCallback(() => {
-    setSelectedPages(new Set(pagePreviews.map(p => p.pageNumber)));
+    setSelectedPages(new Set(pagePreviews.map((p) => p.pageNumber)));
   }, [pagePreviews]);
 
   /**
@@ -259,7 +273,7 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
    */
   const getPageRanges = useCallback((): PageRange[] => {
     switch (splitMode) {
-      case 'ranges':
+      case "ranges":
         if (rangeInput.trim()) {
           return parsePageRanges(rangeInput, totalPages);
         }
@@ -285,32 +299,35 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
         // Default: export all pages if no input and no selection
         return [{ start: 1, end: totalPages }];
 
-      case 'even-odd': {
+      case "even-odd": {
         const { odd, even } = createSplitByEvenOdd(totalPages);
-        if (evenOddMode === 'odd') {
+        if (evenOddMode === "odd") {
           return odd;
-        } else if (evenOddMode === 'even') {
+        } else if (evenOddMode === "even") {
           return even;
         }
         // Both: return all odd pages as one range group, then all even pages
         return [...odd, ...even];
       }
 
-      case 'every-page':
+      case "every-page":
         return createSplitEveryPage(totalPages);
 
-      case 'visual':
+      case "visual":
         // Visual mode uses selected pages
         if (selectedPages.size > 0) {
           return Array.from(selectedPages)
             .sort((a, b) => a - b)
-            .map(p => ({ start: p, end: p }));
+            .map((p) => ({ start: p, end: p }));
         }
         return [];
 
-      case 'bookmarks': {
+      case "bookmarks": {
         // Use extracted bookmarks from PDF.js
-        const { ranges, labels } = createSplitByBookmarks(pdfBookmarks, totalPages);
+        const { ranges, labels } = createSplitByBookmarks(
+          pdfBookmarks,
+          totalPages,
+        );
         // Store labels for later use in filenames
         if (labels.length > 0 && bookmarkLabels.length === 0) {
           setBookmarkLabels(labels);
@@ -318,38 +335,47 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
         return ranges;
       }
 
-      case 'n-times':
+      case "n-times":
         return createSplitNTimes(totalPages, splitCount);
 
       default:
         return [];
     }
-  }, [splitMode, rangeInput, selectedPages, totalPages, splitCount, evenOddMode, pdfBookmarks, bookmarkLabels]);
+  }, [
+    splitMode,
+    rangeInput,
+    selectedPages,
+    totalPages,
+    splitCount,
+    evenOddMode,
+    pdfBookmarks,
+    bookmarkLabels,
+  ]);
 
   /**
    * Handle split operation
    */
   const handleSplit = useCallback(async () => {
     if (!file) {
-      setError('Please upload a PDF file first.');
+      setError("Please upload a PDF file first.");
       return;
     }
 
     const ranges = getPageRanges();
     if (ranges.length === 0) {
-      setError('Please specify page ranges or select pages to extract.');
+      setError("Please specify page ranges or select pages to extract.");
       return;
     }
 
     cancelledRef.current = false;
-    setStatus('processing');
+    setStatus("processing");
     setProgress(0);
     setError(null);
     setResults([]);
 
     const options: SplitOptions = {
       ranges,
-      outputFormat: 'multiple',
+      outputFormat: "multiple",
     };
 
     try {
@@ -359,19 +385,22 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
         (prog, message) => {
           if (!cancelledRef.current) {
             setProgress(prog);
-            setProgressMessage(message || '');
+            setProgressMessage(message || "");
           }
-        }
+        },
       );
 
       if (cancelledRef.current) {
-        setStatus('idle');
+        setStatus("idle");
         return;
       }
 
       if (output.success && output.result) {
-        const blobs = Array.isArray(output.result) ? output.result : [output.result];
-        const filenames = output.metadata?.outputFiles as string[] ||
+        const blobs = Array.isArray(output.result)
+          ? output.result
+          : [output.result];
+        const filenames =
+          (output.metadata?.outputFiles as string[]) ||
           blobs.map((_, i) => `split_${i + 1}.pdf`);
 
         const resultFiles = blobs.map((blob, i) => ({
@@ -380,15 +409,17 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
         }));
 
         setResults(resultFiles);
-        setStatus('complete');
+        setStatus("complete");
       } else {
-        setError(output.error?.message || 'Failed to split PDF file.');
-        setStatus('error');
+        setError(output.error?.message || "Failed to split PDF file.");
+        setStatus("error");
       }
     } catch (err) {
       if (!cancelledRef.current) {
-        setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
-        setStatus('error');
+        setError(
+          err instanceof Error ? err.message : "An unexpected error occurred.",
+        );
+        setStatus("error");
       }
     }
   }, [file, getPageRanges]);
@@ -398,7 +429,7 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
    */
   const handleCancel = useCallback(() => {
     cancelledRef.current = true;
-    setStatus('idle');
+    setStatus("idle");
     setProgress(0);
   }, []);
 
@@ -411,29 +442,34 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const isProcessing = status === 'processing' || status === 'uploading';
-  const canSplit = file && totalPages > 0 && !isProcessing && (
-    splitMode === 'ranges' ||  // ranges mode always allowed (defaults to all pages)
-    splitMode === 'even-odd' ||
-    splitMode === 'every-page' ||
-    (splitMode === 'visual' && selectedPages.size > 0) ||
-    splitMode === 'bookmarks' ||
-    splitMode === 'n-times'
-  );
+  const isProcessing = status === "processing" || status === "uploading";
+  const canSplit =
+    file &&
+    totalPages > 0 &&
+    !isProcessing &&
+    (splitMode === "ranges" || // ranges mode always allowed (defaults to all pages)
+      splitMode === "even-odd" ||
+      splitMode === "every-page" ||
+      (splitMode === "visual" && selectedPages.size > 0) ||
+      splitMode === "bookmarks" ||
+      splitMode === "n-times");
 
   return (
     <div className={`space-y-6 ${className}`.trim()}>
       {/* File Upload Area */}
       {!file && (
         <FileUploader
-          accept={['application/pdf', '.pdf']}
+          accept={["application/pdf", ".pdf"]}
           multiple={false}
           maxFiles={1}
           onFilesSelected={handleFilesSelected}
           onError={handleUploadError}
           disabled={isProcessing}
-          label={tTools('splitPdf.uploadLabel') || 'Upload PDF File'}
-          description={tTools('splitPdf.uploadDescription') || 'Drag and drop a PDF file here, or click to browse.'}
+          label={tTools("splitPdf.uploadLabel") || "Upload PDF File"}
+          description={
+            tTools("splitPdf.uploadDescription") ||
+            "Drag and drop a PDF file here, or click to browse."
+          }
         />
       )}
 
@@ -452,15 +488,24 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
         <Card variant="outlined">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <svg className="w-10 h-10 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                className="w-10 h-10 text-red-500"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
                 <path d="M14 2v6h6" fill="white" />
-                <text x="7" y="17" fontSize="6" fill="white" fontWeight="bold">PDF</text>
+                <text x="7" y="17" fontSize="6" fill="white" fontWeight="bold">
+                  PDF
+                </text>
               </svg>
               <div>
-                <p className="font-medium text-[hsl(var(--color-foreground))]">{file.name}</p>
+                <p className="font-medium text-[hsl(var(--color-foreground))]">
+                  {file.name}
+                </p>
                 <p className="text-sm text-[hsl(var(--color-muted-foreground))]">
-                  {formatSize(file.size)} • {totalPages} {totalPages === 1 ? 'page' : 'pages'}
+                  {formatSize(file.size)} • {totalPages}{" "}
+                  {totalPages === 1 ? "page" : "pages"}
                 </p>
               </div>
             </div>
@@ -470,7 +515,7 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
               onClick={handleClearFile}
               disabled={isProcessing}
             >
-              {t('buttons.remove') || 'Remove'}
+              {t("buttons.remove") || "Remove"}
             </Button>
           </div>
         </Card>
@@ -480,39 +525,68 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
       {file && totalPages > 0 && (
         <Card variant="outlined" size="lg">
           <h3 className="text-lg font-medium text-[hsl(var(--color-foreground))] mb-4">
-            {tTools('splitPdf.splitModeTitle') || 'Split Method'}
+            {tTools("splitPdf.splitModeTitle") || "Split Method"}
           </h3>
 
           <div className="space-y-4">
             {/* Mode Selection - Card-based selector */}
             <div>
               <label className="block text-sm font-medium text-[hsl(var(--color-foreground))] mb-3">
-                {tTools('splitPdf.splitModeLabel') || 'Split Mode'}
+                {tTools("splitPdf.splitModeLabel") || "Split Mode"}
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {/* Range Mode */}
                 <button
                   type="button"
-                  onClick={() => setSplitMode('ranges')}
+                  onClick={() => setSplitMode("ranges")}
                   disabled={isProcessing}
-                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${splitMode === 'ranges'
-                    ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md'
-                    : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]'
-                    }`}
+                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                    splitMode === "ranges"
+                      ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md"
+                      : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]"
+                  }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${splitMode === 'ranges' ? 'bg-[hsl(var(--color-primary))] text-white' : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]'
-                    }`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
+                      splitMode === "ranges"
+                        ? "bg-[hsl(var(--color-primary))] text-white"
+                        : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]"
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                      />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium text-center ${splitMode === 'ranges' ? 'text-[hsl(var(--color-primary))]' : 'text-[hsl(var(--color-foreground))]'}`}>
-                    {tTools('splitPdf.modeRanges')?.replace(' (Default)', '') || 'Page Range'}
+                  <span
+                    className={`text-sm font-medium text-center ${splitMode === "ranges" ? "text-[hsl(var(--color-primary))]" : "text-[hsl(var(--color-foreground))]"}`}
+                  >
+                    {tTools("splitPdf.modeRanges")?.replace(" (Default)", "") ||
+                      "Page Range"}
                   </span>
-                  {splitMode === 'ranges' && (
+                  {splitMode === "ranges" && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[hsl(var(--color-primary))] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -521,26 +595,55 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                 {/* Even/Odd Mode */}
                 <button
                   type="button"
-                  onClick={() => setSplitMode('even-odd')}
+                  onClick={() => setSplitMode("even-odd")}
                   disabled={isProcessing}
-                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${splitMode === 'even-odd'
-                    ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md'
-                    : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]'
-                    }`}
+                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                    splitMode === "even-odd"
+                      ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md"
+                      : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]"
+                  }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${splitMode === 'even-odd' ? 'bg-[hsl(var(--color-primary))] text-white' : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]'
-                    }`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12M8 12h8m-8 5h12" />
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
+                      splitMode === "even-odd"
+                        ? "bg-[hsl(var(--color-primary))] text-white"
+                        : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]"
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12M8 12h8m-8 5h12"
+                      />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium text-center ${splitMode === 'even-odd' ? 'text-[hsl(var(--color-primary))]' : 'text-[hsl(var(--color-foreground))]'}`}>
-                    {tTools('splitPdf.modeEvenOdd')?.replace('Split by ', '') || 'Even/Odd'}
+                  <span
+                    className={`text-sm font-medium text-center ${splitMode === "even-odd" ? "text-[hsl(var(--color-primary))]" : "text-[hsl(var(--color-foreground))]"}`}
+                  >
+                    {tTools("splitPdf.modeEvenOdd")?.replace("Split by ", "") ||
+                      "Even/Odd"}
                   </span>
-                  {splitMode === 'even-odd' && (
+                  {splitMode === "even-odd" && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[hsl(var(--color-primary))] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -549,26 +652,57 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                 {/* Every Page Mode */}
                 <button
                   type="button"
-                  onClick={() => setSplitMode('every-page')}
+                  onClick={() => setSplitMode("every-page")}
                   disabled={isProcessing}
-                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${splitMode === 'every-page'
-                    ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md'
-                    : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]'
-                    }`}
+                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                    splitMode === "every-page"
+                      ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md"
+                      : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]"
+                  }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${splitMode === 'every-page' ? 'bg-[hsl(var(--color-primary))] text-white' : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]'
-                    }`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
+                      splitMode === "every-page"
+                        ? "bg-[hsl(var(--color-primary))] text-white"
+                        : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]"
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium text-center ${splitMode === 'every-page' ? 'text-[hsl(var(--color-primary))]' : 'text-[hsl(var(--color-foreground))]'}`}>
-                    {tTools('splitPdf.modeEveryPage')?.replace('Split All Pages into Separate Files', 'Every Page') || 'Every Page'}
+                  <span
+                    className={`text-sm font-medium text-center ${splitMode === "every-page" ? "text-[hsl(var(--color-primary))]" : "text-[hsl(var(--color-foreground))]"}`}
+                  >
+                    {tTools("splitPdf.modeEveryPage")?.replace(
+                      "Split All Pages into Separate Files",
+                      "Every Page",
+                    ) || "Every Page"}
                   </span>
-                  {splitMode === 'every-page' && (
+                  {splitMode === "every-page" && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[hsl(var(--color-primary))] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -577,26 +711,54 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                 {/* Visual Mode */}
                 <button
                   type="button"
-                  onClick={() => setSplitMode('visual')}
+                  onClick={() => setSplitMode("visual")}
                   disabled={isProcessing}
-                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${splitMode === 'visual'
-                    ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md'
-                    : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]'
-                    }`}
+                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                    splitMode === "visual"
+                      ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md"
+                      : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]"
+                  }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${splitMode === 'visual' ? 'bg-[hsl(var(--color-primary))] text-white' : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]'
-                    }`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
+                      splitMode === "visual"
+                        ? "bg-[hsl(var(--color-primary))] text-white"
+                        : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]"
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                      />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium text-center ${splitMode === 'visual' ? 'text-[hsl(var(--color-primary))]' : 'text-[hsl(var(--color-foreground))]'}`}>
-                    {tTools('splitPdf.modeVisualShort') || 'Visual Select'}
+                  <span
+                    className={`text-sm font-medium text-center ${splitMode === "visual" ? "text-[hsl(var(--color-primary))]" : "text-[hsl(var(--color-foreground))]"}`}
+                  >
+                    {tTools("splitPdf.modeVisualShort") || "Visual Select"}
                   </span>
-                  {splitMode === 'visual' && (
+                  {splitMode === "visual" && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[hsl(var(--color-primary))] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -605,31 +767,59 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                 {/* Bookmarks Mode */}
                 <button
                   type="button"
-                  onClick={() => setSplitMode('bookmarks')}
+                  onClick={() => setSplitMode("bookmarks")}
                   disabled={isProcessing}
-                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${splitMode === 'bookmarks'
-                    ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md'
-                    : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]'
-                    }`}
+                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                    splitMode === "bookmarks"
+                      ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md"
+                      : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]"
+                  }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${splitMode === 'bookmarks' ? 'bg-[hsl(var(--color-primary))] text-white' : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]'
-                    }`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
+                      splitMode === "bookmarks"
+                        ? "bg-[hsl(var(--color-primary))] text-white"
+                        : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]"
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                      />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium text-center ${splitMode === 'bookmarks' ? 'text-[hsl(var(--color-primary))]' : 'text-[hsl(var(--color-foreground))]'}`}>
-                    {tTools('splitPdf.modeBookmarksShort') || 'Bookmarks'}
+                  <span
+                    className={`text-sm font-medium text-center ${splitMode === "bookmarks" ? "text-[hsl(var(--color-primary))]" : "text-[hsl(var(--color-foreground))]"}`}
+                  >
+                    {tTools("splitPdf.modeBookmarksShort") || "Bookmarks"}
                   </span>
                   {pdfBookmarks.length > 0 && (
                     <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold">
                       {pdfBookmarks.length}
                     </span>
                   )}
-                  {splitMode === 'bookmarks' && (
+                  {splitMode === "bookmarks" && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[hsl(var(--color-primary))] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -638,26 +828,54 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                 {/* N Times Mode */}
                 <button
                   type="button"
-                  onClick={() => setSplitMode('n-times')}
+                  onClick={() => setSplitMode("n-times")}
                   disabled={isProcessing}
-                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${splitMode === 'n-times'
-                    ? 'border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md'
-                    : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]'
-                    }`}
+                  className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                    splitMode === "n-times"
+                      ? "border-[hsl(var(--color-primary))] bg-[hsl(var(--color-primary)/0.05)] shadow-md"
+                      : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)] hover:bg-[hsl(var(--color-muted)/0.3)]"
+                  }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${splitMode === 'n-times' ? 'bg-[hsl(var(--color-primary))] text-white' : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]'
-                    }`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
+                      splitMode === "n-times"
+                        ? "bg-[hsl(var(--color-primary))] text-white"
+                        : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-muted-foreground))] group-hover:bg-[hsl(var(--color-primary)/0.2)]"
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"
+                      />
                     </svg>
                   </div>
-                  <span className={`text-sm font-medium text-center ${splitMode === 'n-times' ? 'text-[hsl(var(--color-primary))]' : 'text-[hsl(var(--color-foreground))]'}`}>
-                    {tTools('splitPdf.modeNTimesShort') || 'Split N Parts'}
+                  <span
+                    className={`text-sm font-medium text-center ${splitMode === "n-times" ? "text-[hsl(var(--color-primary))]" : "text-[hsl(var(--color-foreground))]"}`}
+                  >
+                    {tTools("splitPdf.modeNTimesShort") || "Split N Parts"}
                   </span>
-                  {splitMode === 'n-times' && (
+                  {splitMode === "n-times" && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[hsl(var(--color-primary))] flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -666,14 +884,14 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
             </div>
 
             {/* Mode-specific options */}
-            {splitMode === 'ranges' && (
+            {splitMode === "ranges" && (
               <div className="space-y-3">
                 <div>
                   <label
                     htmlFor="page-ranges"
                     className="block text-sm font-medium text-[hsl(var(--color-foreground))] mb-1"
                   >
-                    {tTools('splitPdf.rangeInputLabel') || 'Page Ranges'}
+                    {tTools("splitPdf.rangeInputLabel") || "Page Ranges"}
                   </label>
                   <input
                     id="page-ranges"
@@ -685,67 +903,83 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                     className="w-full px-3 py-2 rounded-[var(--radius-md)] border border-[hsl(var(--color-border))] bg-[hsl(var(--color-background))] text-[hsl(var(--color-foreground))] placeholder:text-[hsl(var(--color-muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))]"
                   />
                   <p className="mt-1 text-xs text-[hsl(var(--color-muted-foreground))]">
-                    {tTools('splitPdf.rangeInputHint') || 'Enter page numbers or ranges separated by commas. Leave empty to export all pages as one file.'}
+                    {tTools("splitPdf.rangeInputHint") ||
+                      "Enter page numbers or ranges separated by commas. Leave empty to export all pages as one file."}
                   </p>
                 </div>
               </div>
             )}
 
-            {splitMode === 'even-odd' && (
+            {splitMode === "even-odd" && (
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-[hsl(var(--color-foreground))] mb-2">
-                    {tTools('splitPdf.evenOddLabel') || 'Extract Pages'}
+                    {tTools("splitPdf.evenOddLabel") || "Extract Pages"}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => setEvenOddMode('odd')}
+                      onClick={() => setEvenOddMode("odd")}
                       disabled={isProcessing}
-                      className={`px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${evenOddMode === 'odd'
-                        ? 'bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))]'
-                        : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-foreground))] hover:bg-[hsl(var(--color-muted)/0.8)]'
-                        }`}
+                      className={`px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                        evenOddMode === "odd"
+                          ? "bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))]"
+                          : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-foreground))] hover:bg-[hsl(var(--color-muted)/0.8)]"
+                      }`}
                     >
-                      {tTools('splitPdf.oddPagesOnly') || 'Odd Pages Only'}
+                      {tTools("splitPdf.oddPagesOnly") || "Odd Pages Only"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEvenOddMode('even')}
+                      onClick={() => setEvenOddMode("even")}
                       disabled={isProcessing}
-                      className={`px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${evenOddMode === 'even'
-                        ? 'bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))]'
-                        : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-foreground))] hover:bg-[hsl(var(--color-muted)/0.8)]'
-                        }`}
+                      className={`px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                        evenOddMode === "even"
+                          ? "bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))]"
+                          : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-foreground))] hover:bg-[hsl(var(--color-muted)/0.8)]"
+                      }`}
                     >
-                      {tTools('splitPdf.evenPagesOnly') || 'Even Pages Only'}
+                      {tTools("splitPdf.evenPagesOnly") || "Even Pages Only"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEvenOddMode('both')}
+                      onClick={() => setEvenOddMode("both")}
                       disabled={isProcessing}
-                      className={`px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${evenOddMode === 'both'
-                        ? 'bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))]'
-                        : 'bg-[hsl(var(--color-muted))] text-[hsl(var(--color-foreground))] hover:bg-[hsl(var(--color-muted)/0.8)]'
-                        }`}
+                      className={`px-4 py-2 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                        evenOddMode === "both"
+                          ? "bg-[hsl(var(--color-primary))] text-[hsl(var(--color-primary-foreground))]"
+                          : "bg-[hsl(var(--color-muted))] text-[hsl(var(--color-foreground))] hover:bg-[hsl(var(--color-muted)/0.8)]"
+                      }`}
                     >
-                      {tTools('splitPdf.bothSeparate') || 'Both (Separate Files)'}
+                      {tTools("splitPdf.bothSeparate") ||
+                        "Both (Separate Files)"}
                     </button>
                   </div>
                   <p className="mt-2 text-xs text-[hsl(var(--color-muted-foreground))]">
-                    {tTools('splitPdf.evenOddHint') || 'Odd pages: 1, 3, 5... Even pages: 2, 4, 6...'}
+                    {tTools("splitPdf.evenOddHint") ||
+                      "Odd pages: 1, 3, 5... Even pages: 2, 4, 6..."}
                   </p>
                 </div>
               </div>
             )}
 
-            {splitMode === 'every-page' && (
+            {splitMode === "every-page" && (
               <div className="relative overflow-hidden p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 shadow-sm">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="relative flex items-start gap-3">
                   <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      className="w-5 h-5 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                   </div>
                   <div>
@@ -753,20 +987,33 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                       {totalPages} Separate Files
                     </p>
                     <p className="text-xs text-blue-600 mt-0.5">
-                      {tTools('splitPdf.everyPageInfo', { count: totalPages }) || 'Each page will be extracted as a separate PDF file'}
+                      {tTools("splitPdf.everyPageInfo", {
+                        count: totalPages,
+                      }) ||
+                        "Each page will be extracted as a separate PDF file"}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {splitMode === 'visual' && (
+            {splitMode === "visual" && (
               <div className="relative overflow-hidden p-4 rounded-xl bg-gradient-to-r from-purple-50 to-fuchsia-50 border border-purple-200/60 shadow-sm">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-200/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="relative flex items-start gap-3">
                   <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                    <svg
+                      className="w-5 h-5 text-purple-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                      />
                     </svg>
                   </div>
                   <div>
@@ -774,14 +1021,15 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                       Visual Page Selection
                     </p>
                     <p className="text-xs text-purple-600 mt-0.5">
-                      {tTools('splitPdf.visualInfo') || 'Click on page thumbnails below to select pages for extraction'}
+                      {tTools("splitPdf.visualInfo") ||
+                        "Click on page thumbnails below to select pages for extraction"}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {splitMode === 'bookmarks' && (
+            {splitMode === "bookmarks" && (
               <div className="space-y-4">
                 {pdfBookmarks.length > 0 ? (
                   <>
@@ -790,16 +1038,31 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-200/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
                       <div className="relative flex items-start gap-3">
                         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          <svg
+                            className="w-5 h-5 text-emerald-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
                           </svg>
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-emerald-800">
-                            {pdfBookmarks.length} {pdfBookmarks.length === 1 ? 'Bookmark' : 'Bookmarks'} Found
+                            {pdfBookmarks.length}{" "}
+                            {pdfBookmarks.length === 1
+                              ? "Bookmark"
+                              : "Bookmarks"}{" "}
+                            Found
                           </p>
                           <p className="text-xs text-emerald-600 mt-0.5">
-                            Your PDF will be split into {pdfBookmarks.length} separate files based on the bookmark structure
+                            Your PDF will be split into {pdfBookmarks.length}{" "}
+                            separate files based on the bookmark structure
                           </p>
                         </div>
                       </div>
@@ -809,8 +1072,18 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                     <div className="rounded-xl border border-[hsl(var(--color-border))] overflow-hidden shadow-sm bg-[hsl(var(--color-background))]">
                       <div className="px-4 py-3 bg-gradient-to-r from-[hsl(var(--color-muted)/0.5)] to-[hsl(var(--color-muted)/0.3)] border-b border-[hsl(var(--color-border))]">
                         <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-[hsl(var(--color-primary))]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                          <svg
+                            className="w-4 h-4 text-[hsl(var(--color-primary))]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                            />
                           </svg>
                           <p className="text-sm font-medium text-[hsl(var(--color-foreground))]">
                             Split Points
@@ -820,7 +1093,10 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                       <div className="max-h-56 overflow-y-auto">
                         <ul className="divide-y divide-[hsl(var(--color-border)/0.5)]">
                           {pdfBookmarks.map((bookmark, index) => (
-                            <li key={index} className="group px-4 py-3 flex items-center justify-between transition-colors hover:bg-[hsl(var(--color-muted)/0.15)]">
+                            <li
+                              key={index}
+                              className="group px-4 py-3 flex items-center justify-between transition-colors hover:bg-[hsl(var(--color-muted)/0.15)]"
+                            >
                               <div className="flex items-center gap-3 min-w-0">
                                 <span className="flex-shrink-0 w-6 h-6 rounded-md bg-[hsl(var(--color-primary)/0.1)] text-[hsl(var(--color-primary))] text-xs font-semibold flex items-center justify-center">
                                   {index + 1}
@@ -851,8 +1127,18 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-200/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
                     <div className="relative flex items-start gap-3">
                       <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        <svg
+                          className="w-5 h-5 text-amber-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                          />
                         </svg>
                       </div>
                       <div>
@@ -860,7 +1146,8 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                           No Bookmarks Found
                         </p>
                         <p className="text-xs text-amber-600 mt-0.5">
-                          {tTools('splitPdf.bookmarksNotice') || 'This PDF does not contain bookmarks. The entire document will be returned as a single file.'}
+                          {tTools("splitPdf.bookmarksNotice") ||
+                            "This PDF does not contain bookmarks. The entire document will be returned as a single file."}
                         </p>
                       </div>
                     </div>
@@ -869,13 +1156,13 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
               </div>
             )}
 
-            {splitMode === 'n-times' && (
+            {splitMode === "n-times" && (
               <div>
                 <label
                   htmlFor="split-count"
                   className="block text-sm font-medium text-[hsl(var(--color-foreground))] mb-1"
                 >
-                  {tTools('splitPdf.splitCountLabel') || 'Number of Parts'}
+                  {tTools("splitPdf.splitCountLabel") || "Number of Parts"}
                 </label>
                 <input
                   id="split-count"
@@ -883,15 +1170,23 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                   min={2}
                   max={totalPages}
                   value={splitCount}
-                  onChange={(e) => setSplitCount(Math.max(2, Math.min(totalPages, parseInt(e.target.value) || 2)))}
+                  onChange={(e) =>
+                    setSplitCount(
+                      Math.max(
+                        2,
+                        Math.min(totalPages, parseInt(e.target.value) || 2),
+                      ),
+                    )
+                  }
                   disabled={isProcessing}
                   className="w-24 px-3 py-2 rounded-[var(--radius-md)] border border-[hsl(var(--color-border))] bg-[hsl(var(--color-background))] text-[hsl(var(--color-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))]"
                 />
                 <p className="mt-1 text-xs text-[hsl(var(--color-muted-foreground))]">
-                  {tTools('splitPdf.splitCountHint', {
+                  {tTools("splitPdf.splitCountHint", {
                     count: splitCount,
-                    pages: Math.ceil(totalPages / splitCount)
-                  }) || `Split into ${splitCount} equal parts (~${Math.ceil(totalPages / splitCount)} pages each)`}
+                    pages: Math.ceil(totalPages / splitCount),
+                  }) ||
+                    `Split into ${splitCount} equal parts (~${Math.ceil(totalPages / splitCount)} pages each)`}
                 </p>
               </div>
             )}
@@ -900,75 +1195,101 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
       )}
 
       {/* Page Preview Grid */}
-      {file && pagePreviews.length > 0 && (splitMode === 'ranges' || splitMode === 'visual') && (
-        <Card variant="outlined" size="lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-[hsl(var(--color-foreground))]">
-              {tTools('splitPdf.pagePreviewTitle') || 'Select Pages'}
-              {selectedPages.size > 0 && ` (${selectedPages.size} selected)`}
-            </h3>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={handleSelectAll} disabled={isProcessing}>
-                {t('buttons.selectAll') || 'Select All'}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleDeselectAll} disabled={isProcessing}>
-                {t('buttons.deselectAll') || 'Deselect All'}
-              </Button>
-            </div>
-          </div>
-
-          {isLoadingPreviews ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 border-2 border-[hsl(var(--color-primary))] border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-[hsl(var(--color-muted-foreground))]">
-                  {t('status.loading') || 'Loading previews...'}
-                </p>
+      {file &&
+        pagePreviews.length > 0 &&
+        (splitMode === "ranges" || splitMode === "visual") && (
+          <Card variant="outlined" size="lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-[hsl(var(--color-foreground))]">
+                {tTools("splitPdf.pagePreviewTitle") || "Select Pages"}
+                {selectedPages.size > 0 && ` (${selectedPages.size} selected)`}
+              </h3>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSelectAll}
+                  disabled={isProcessing}
+                >
+                  {t("buttons.selectAll") || "Select All"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeselectAll}
+                  disabled={isProcessing}
+                >
+                  {t("buttons.deselectAll") || "Deselect All"}
+                </Button>
               </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3 max-h-[400px] overflow-y-auto p-1">
-              {pagePreviews.map((preview) => (
-                <button
-                  key={preview.pageNumber}
-                  type="button"
-                  onClick={() => handleTogglePage(preview.pageNumber)}
-                  disabled={isProcessing}
-                  className={`relative aspect-[3/4] rounded-[var(--radius-md)] border-2 overflow-hidden transition-all ${selectedPages.has(preview.pageNumber)
-                    ? 'border-[hsl(var(--color-primary))] ring-2 ring-[hsl(var(--color-primary)/0.3)]'
-                    : 'border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)]'
+
+            {isLoadingPreviews ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 border-2 border-[hsl(var(--color-primary))] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm text-[hsl(var(--color-muted-foreground))]">
+                    {t("status.loading") || "Loading previews..."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3 max-h-[400px] overflow-y-auto p-1">
+                {pagePreviews.map((preview) => (
+                  <button
+                    key={preview.pageNumber}
+                    type="button"
+                    onClick={() => handleTogglePage(preview.pageNumber)}
+                    disabled={isProcessing}
+                    className={`relative aspect-[3/4] rounded-[var(--radius-md)] border-2 overflow-hidden transition-all ${
+                      selectedPages.has(preview.pageNumber)
+                        ? "border-[hsl(var(--color-primary))] ring-2 ring-[hsl(var(--color-primary)/0.3)]"
+                        : "border-[hsl(var(--color-border))] hover:border-[hsl(var(--color-primary)/0.5)]"
                     }`}
-                  aria-label={`Page ${preview.pageNumber}${selectedPages.has(preview.pageNumber) ? ' (selected)' : ''}`}
-                >
-                  {preview.thumbnail ? (
-                    <img
-                      src={preview.thumbnail}
-                      alt={`Page ${preview.pageNumber}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-[hsl(var(--color-muted))] flex items-center justify-center">
-                      <span className="text-xs text-[hsl(var(--color-muted-foreground))]">
-                        {preview.pageNumber}
-                      </span>
+                    aria-label={`Page ${preview.pageNumber}${selectedPages.has(preview.pageNumber) ? " (selected)" : ""}`}
+                  >
+                    {preview.thumbnail ? (
+                      <Image
+                        src={preview.thumbnail}
+                        alt={`Page ${preview.pageNumber}`}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 640px) 25vw, (max-width: 768px) 16vw, (max-width: 1024px) 12vw, 10vw"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[hsl(var(--color-muted))] flex items-center justify-center">
+                        <span className="text-xs text-[hsl(var(--color-muted-foreground))]">
+                          {preview.pageNumber}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-0.5 text-center">
+                      {preview.pageNumber}
                     </div>
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-0.5 text-center">
-                    {preview.pageNumber}
-                  </div>
-                  {selectedPages.has(preview.pageNumber) && (
-                    <div className="absolute top-1 right-1 w-5 h-5 bg-[hsl(var(--color-primary))] rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
+                    {selectedPages.has(preview.pageNumber) && (
+                      <div className="absolute top-1 right-1 w-5 h-5 bg-[hsl(var(--color-primary))] rounded-full flex items-center justify-center">
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
 
       {/* Processing Progress */}
       {isProcessing && (
@@ -992,18 +1313,18 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
             loading={isProcessing}
           >
             {isProcessing
-              ? (t('status.processing') || 'Processing...')
-              : (tTools('splitPdf.splitButton') || 'Split PDF')
-            }
+              ? t("status.processing") || "Processing..."
+              : tTools("splitPdf.splitButton") || "Split PDF"}
           </Button>
         </div>
       )}
 
       {/* Results */}
-      {status === 'complete' && results.length > 0 && (
+      {status === "complete" && results.length > 0 && (
         <Card variant="outlined" size="lg">
           <h3 className="text-lg font-medium text-[hsl(var(--color-foreground))] mb-4">
-            {tTools('splitPdf.resultsTitle') || 'Split Results'} ({results.length} {results.length === 1 ? 'file' : 'files'})
+            {tTools("splitPdf.resultsTitle") || "Split Results"} (
+            {results.length} {results.length === 1 ? "file" : "files"})
           </h3>
 
           {/* Download ZIP button if multiple files */}
@@ -1014,23 +1335,33 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                 onClick={async () => {
                   try {
                     const zipBlob = await createZip(results);
-                    const link = document.createElement('a');
+                    const link = document.createElement("a");
                     link.href = URL.createObjectURL(zipBlob);
-                    link.download = `${file?.name.replace('.pdf', '') || 'split'}-files.zip`;
+                    link.download = `${file?.name.replace(".pdf", "") || "split"}-files.zip`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
                   } catch (err) {
-                    console.error('Failed to create ZIP:', err);
-                    setError('Failed to create ZIP file.');
+                    console.error("Failed to create ZIP:", err);
+                    setError("Failed to create ZIP file.");
                   }
                 }}
                 className="w-full sm:w-auto"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
                 </svg>
-                {tTools('splitPdf.downloadZip') || 'Download All as ZIP'}
+                {tTools("splitPdf.downloadZip") || "Download All as ZIP"}
               </Button>
             </div>
           )}
@@ -1042,10 +1373,22 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
                 className="flex items-center justify-between p-3 rounded-[var(--radius-md)] bg-[hsl(var(--color-muted)/0.3)]"
               >
                 <div className="flex items-center gap-3">
-                  <svg className="w-8 h-8 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    className="w-8 h-8 text-red-500"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
                     <path d="M14 2v6h6" fill="white" />
-                    <text x="7" y="17" fontSize="6" fill="white" fontWeight="bold">PDF</text>
+                    <text
+                      x="7"
+                      y="17"
+                      fontSize="6"
+                      fill="white"
+                      fontWeight="bold"
+                    >
+                      PDF
+                    </text>
                   </svg>
                   <div>
                     <p className="text-sm font-medium text-[hsl(var(--color-foreground))]">
@@ -1069,13 +1412,14 @@ export function SplitPDFTool({ className = '' }: SplitPDFToolProps) {
       )}
 
       {/* Success Message */}
-      {status === 'complete' && results.length > 0 && (
+      {status === "complete" && results.length > 0 && (
         <div
           className="p-4 rounded-[var(--radius-md)] bg-green-50 border border-green-200 text-green-700"
           role="status"
         >
           <p className="text-sm font-medium">
-            {tTools('splitPdf.successMessage') || `PDF split successfully into ${results.length} file(s)! Click the download buttons to save your files.`}
+            {tTools("splitPdf.successMessage") ||
+              `PDF split successfully into ${results.length} file(s)! Click the download buttons to save your files.`}
           </p>
         </div>
       )}
